@@ -73,7 +73,7 @@ def random_layout(grid: Grid, rng: np.random.Generator) -> np.ndarray:
     def blobs(n: int, r_lo: float, r_hi: float, where: str = "any") -> list[np.ndarray]:
         out = []
         for _ in range(n):
-            while True:
+            for _attempt in range(200):  # accept the last draw if the region is too small to satisfy
                 p = rng.uniform([2e3, 2e3], [W - 2e3, H - 2e3])
                 dist = np.hypot(*(p - c))
                 if where == "any" or (where == "outer" and dist > r_ring) or (where == "inner" and dist < r_ring):

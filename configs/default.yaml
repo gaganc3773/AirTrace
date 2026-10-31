@@ -1,0 +1,32 @@
+# AirTrace default configuration. All lengths in metres, times in seconds,
+# concentrations in µg/m³, sources in µg m^-3 s^-1.
+seed: 42
+
+domain:
+  name: delhi
+  center_lat: 28.62
+  center_lon: 77.15
+  width_m: 48000.0
+  height_m: 48000.0
+  nx: 64
+  ny: 64
+
+physics:
+  K: 75.0                      # horizontal eddy diffusivity [m²/s]
+  lam: 2.0e-5                  # first-order removal [1/s] (~14 h lifetime)
+  K_range: [30.0, 150.0]
+  lam_range: [1.0e-5, 5.0e-5]
+  wind_speed_range: [0.3, 6.0]
+  mixing_height_night: 250.0
+  mixing_height_day: 1200.0
+  background_range: [20.0, 250.0]
+
+solver:
+  limiter: koren               # koren (TVD, positive, default) | linear3 (exactly linear: Green's functions) | mc | vanleer | upwind1
+  dt_max: 60.0
+  cfl_max: 0.5
+  forcing_interval: 600.0      # forcing (wind, S, c_bg) held constant over this interval
+
+paths:
+  artifacts: artifacts
+  figures: reports/figures

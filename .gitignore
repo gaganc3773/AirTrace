@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+*.pyc
+# large generated data lives in artifacts/ but only selected files are committed
+artifacts/datasets/

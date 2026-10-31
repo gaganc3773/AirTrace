@@ -29,10 +29,10 @@ class PhysicsConfig(BaseModel):
     lam: float = 2.0e-5
     K_range: tuple[float, float] = (30.0, 150.0)
     lam_range: tuple[float, float] = (1.0e-5, 5.0e-5)
-    wind_speed_range: tuple[float, float] = (0.3, 6.0)
+    wind_speed_range: tuple[float, float] = (0.5, 6.0)
     mixing_height_night: float = 250.0
     mixing_height_day: float = 1200.0
-    background_range: tuple[float, float] = (20.0, 250.0)
+    background_range: tuple[float, float] = (15.0, 150.0)
 
 
 class SolverConfig(BaseModel):
@@ -42,6 +42,40 @@ class SolverConfig(BaseModel):
     dt_max: float = 60.0
     cfl_max: float = 0.5
     forcing_interval: float = 600.0
+
+
+class SensorConfig(BaseModel):
+    """Synthetic sensor network: placement and measurement error."""
+
+    n_sensors: int = 40
+    min_dist_m: float = 1500.0
+    noise_range: tuple[float, float] = (0.10, 0.20)  # multiplicative lognormal sigma
+    dropout_range: tuple[float, float] = (0.0, 0.3)  # fraction of sensors offline for the window
+    hourly_gap_prob: float = 0.05
+
+
+class DataConfig(BaseModel):
+    """Synthetic scenario generation."""
+
+    name: str = "synth_v1"
+    n_scenarios: int = 20000
+    shard_size: int = 1000
+    batch_size: int = 500
+    sim_hours: int = 30
+    window_hours: int = 6
+    delhi_fraction: float = 0.7
+    n_random_layouts: int = 256
+    total_emission_kg_s: tuple[float, float] = (1.0, 6.0)
+    max_source_g_s: tuple[float, float, float] = (150.0, 60.0, 200.0)  # industry, construction, burning
+    category_alpha: tuple[float, float, float, float] = (2.0, 2.0, 1.5, 1.2)
+    n_industry: tuple[int, int] = (3, 12)
+    n_construction: tuple[int, int] = (0, 6)
+    n_burning: tuple[int, int] = (0, 5)
+    off_prior_prob: float = 0.15
+    hidden_night_prob: float = 0.5
+    nw_wind_prob: float = 0.5
+    wind_pert_frac: tuple[float, float] = (0.0, 0.3)
+    sensors: SensorConfig = SensorConfig()
 
 
 class PathsConfig(BaseModel):
@@ -58,6 +92,7 @@ class Config(BaseModel):
     domain: DomainConfig = DomainConfig()
     physics: PhysicsConfig = PhysicsConfig()
     solver: SolverConfig = SolverConfig()
+    data: DataConfig = DataConfig()
     paths: PathsConfig = PathsConfig()
 
     def path(self, key: Literal["artifacts", "figures"]) -> Path:

@@ -5,3 +5,4 @@ __pycache__/
 *.pyc
 # large generated data lives in artifacts/ but only selected files are committed
 artifacts/datasets/
+*.log

@@ -16,16 +16,42 @@ physics:
   lam: 2.0e-5                  # first-order removal [1/s] (~14 h lifetime)
   K_range: [30.0, 150.0]
   lam_range: [1.0e-5, 5.0e-5]
-  wind_speed_range: [0.3, 6.0]
+  wind_speed_range: [0.5, 6.0]
   mixing_height_night: 250.0
   mixing_height_day: 1200.0
-  background_range: [20.0, 250.0]
+  background_range: [15.0, 150.0]
 
 solver:
   limiter: koren               # koren (TVD, positive, default) | linear3 (exactly linear: Green's functions) | mc | vanleer | upwind1
   dt_max: 60.0
   cfl_max: 0.5
   forcing_interval: 600.0      # forcing (wind, S, c_bg) held constant over this interval
+
+data:
+  name: synth_v1
+  n_scenarios: 20000
+  shard_size: 1000
+  batch_size: 500              # scenarios simulated together on the GPU
+  sim_hours: 30                # 24 h spin-up + 6 h observation window
+  window_hours: 6
+  delhi_fraction: 0.7          # share of scenarios on real Delhi OSM geography
+  n_random_layouts: 256        # synthetic cities for the remaining 30%
+  total_emission_kg_s: [1.0, 6.0]          # domain-total PM2.5, log-uniform (NCT + NCR industrial fringe)
+  max_source_g_s: [150.0, 60.0, 200.0]    # per-source cap: industry, construction, burning
+  category_alpha: [2.0, 2.0, 1.5, 1.2]     # Dirichlet: traffic, industry, construction, burning
+  n_industry: [3, 12]
+  n_construction: [0, 6]
+  n_burning: [0, 5]
+  off_prior_prob: 0.15         # sources placed where the OSM prior says nothing is
+  hidden_night_prob: 0.5       # of off-prior industry: emits only 20:00-06:00
+  nw_wind_prob: 0.5            # Delhi winter north-westerlies
+  wind_pert_frac: [0.0, 0.3]   # divergence-free spatial perturbation / mean speed
+  sensors:
+    n_sensors: 40
+    min_dist_m: 1500.0
+    noise_range: [0.10, 0.20]
+    dropout_range: [0.0, 0.3]
+    hourly_gap_prob: 0.05
 
 paths:
   artifacts: artifacts

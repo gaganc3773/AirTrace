@@ -2,7 +2,7 @@
 
 Physics-informed PM2.5 source attribution from sparse sensors (Delhi NCR prototype).
 
-> Work in progress. Phases 1-3 (solver, synthetic data, linear baseline) are complete; the full README with results lands in Phase 8.
+> Work in progress. Phases 1-4 (solver, synthetic data, linear baseline, PINN) are complete; the full README with results lands in Phase 8.
 
 ## Setup
 
@@ -14,6 +14,7 @@ python -m venv .venv --system-site-packages
 .venv/Scripts/python scripts/phase2_generate.py   # ~20 min on a laptop GPU, 2 GB
 .venv/Scripts/python scripts/phase2_figures.py
 .venv/Scripts/python scripts/phase3_inversion.py   # ~20 min (Green's functions on GPU)
+.venv/Scripts/python scripts/phase4_pinn.py --scenario 19627
 ```
 
 ## Phase 1: forward solver
@@ -75,3 +76,29 @@ Hotspot threshold 15 g/s per 3 km block; match tolerance 1 block. Green's functi
 | all (n=100) | Kriging | – | – | – | – | 34.4 | 0.39 | – | 0.01 |
 
 ![examples](reports/figures/phase3_examples_easy.png)
+
+## Phase 4: PINN
+
+Networks for the local excess c'(x, y, t) ≥ 0 (random Fourier features in space-time) and a time-constant
+emission density e(x, y) ≥ 0, plus an hourly uniform background. Loss = sensor misfit (hourly means,
+noise-weighted) + causally weighted PDE residual (autograd, with the scenario's known divergence-free wind
+and mixing height) + inflow BC + source L1. Non-dimensional (L = 48 km, hours, 100 µg/m³).
+
+What made it work: (1) half the collocation points jittered around sensors, otherwise the network
+satisfies sensors with spikes that uniform collocation never sees; (2) PDE weight 1000 (at 100 the data
+chi²/n fell to 0.18, i.e. it fitted noise); (3) **Morozov early stopping**: stop when data chi²/n reaches 1,
+a criterion that never looks at ground truth.
+
+| Scenario | Kriging | IDW | **PINN** | NNLS-L1 + prior (Phase 3) | PINN train time |
+|---|---|---|---|---|---|
+| #19627 | 12.7 | 13.2 | **11.2** | 7.4 | 1.4 min |
+| #18080 | 21.4 | 22.1 | **17.2** | 12.3 | 0.7 min |
+
+Field RMSE [µg/m³] at unseen cells, last hour. The PINN beats physics-free interpolation by 12-20% and
+recovers the total emission (826 vs 811 g/s true on #19627, where NNLS gets 477) but smears the source
+along the plume axis (an up/downwind degeneracy). It is slower and less accurate than the Green's-function
+inversion, which uses the exact discrete operator. Its role in AirTrace is mesh-free, single-scenario
+reconstruction; the FNO (Phase 5) is the fast, amortised model.
+
+![pinn](reports/figures/phase4_pinn_reconstruction.png)
+![pinn loss](reports/figures/phase4_pinn_loss.png)

@@ -7,3 +7,4 @@ __pycache__/
 artifacts/datasets/
 *.log
 artifacts/greens/
+artifacts/pinn/

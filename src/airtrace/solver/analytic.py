@@ -25,4 +25,4 @@ def gaussian_puff(
     """
     s2 = sigma0**2 + 2.0 * K * t
     r2 = (X - x0 - u * t) ** 2 + (Y - y0 - v * t) ** 2
-    return amplitude * (sigma0**2 / s2) * torch.exp(-r2 / (2.0 * s2)) * torch.exp(torch.tensor(-lam * t, dtype=X.dtype))
+    return amplitude * (sigma0**2 / s2) * torch.exp(-r2 / (2.0 * s2)) * torch.exp(torch.as_tensor(-lam * t, dtype=X.dtype))  # keeps autograd through t

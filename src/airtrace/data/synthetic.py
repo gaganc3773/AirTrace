@@ -199,6 +199,7 @@ class ForcingBuilder:
         up, vp = wind_from_streamfunction(grid, psi)
         scale = torch.maximum(up.abs().amax(dim=(1, 2)), vp.abs().amax(dim=(1, 2))).clamp(min=1e-12)
         self.up, self.vp = up / scale[:, None, None], vp / scale[:, None, None]
+        self.pert_scale = scale  # [psi units per m], so continuous models can rebuild the same wind
 
         # Traffic: road prior x lognormal-ish modulation, normalised to unit total.
         prior = t(layouts[specs.layout_id])

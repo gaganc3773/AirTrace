@@ -23,7 +23,7 @@ from airtrace.eval.plotting import FIELD_CMAP, savefig, set_style
 from airtrace.eval.scenario import load_truth, score, summarize
 from airtrace.grid import Grid
 from airtrace.models.greens import block_sum, response_matrix
-from airtrace.models.inversion import invert, prior_weights
+from airtrace.models.inversion import invert, prior_block_score, prior_weights
 
 BLOCK, TAU, SRC_MIN = 4, 15.0, 10.0  # 3 km blocks; hotspot threshold and "strong source" cut-off [g/s]
 TEST_START = 18000  # last 2,000 scenarios are the held-out test split for every phase
@@ -35,12 +35,6 @@ def is_easy(ds: SyntheticDataset, i: int) -> bool:
     d = ds.get(i, ("wind_u", "wind_v", "sensor_readings", "sensor_noise"))
     speed = np.hypot(d["wind_u"][-6:], d["wind_v"][-6:]).mean()
     return bool(1.5 <= speed <= 4.5 and np.isfinite(d["sensor_readings"][:, -1]).sum() >= 30 and d["sensor_noise"] <= 0.15)
-
-
-def prior_score(layout: np.ndarray) -> np.ndarray:
-    """Per-block prior score in [0, 1] from the four category maps."""
-    mean = block_sum(layout, BLOCK) / BLOCK**2
-    return np.clip(0.5 * mean[0] + mean[1:].max(axis=0) * 2, 0, 1)
 
 
 def run_scenario(ds, i, grid, window, device, cache_dir) -> dict:
@@ -56,7 +50,7 @@ def run_scenario(ds, i, grid, window, device, cache_dir) -> dict:
         np.savez_compressed(cache, sensors=G, field_last=F)
     t_green = time.perf_counter() - t0
     nb = grid.ny // BLOCK
-    weights = {"NNLS-L1": None, "NNLS-L1 + OSM prior": prior_weights(prior_score(ds.layouts[truth.specs.layout_id[0]]))}
+    weights = {"NNLS-L1": None, "NNLS-L1 + OSM prior": prior_weights(prior_block_score(ds.layouts[truth.specs.layout_id[0]], BLOCK))}
     rows, maps = {}, {}
     for name, w in weights.items():
         r = invert(G, truth.readings, sigma_rel=truth.noise, sigma_abs=1.0, weights=w)

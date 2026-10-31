@@ -37,6 +37,13 @@ class InversionResult:
     cv_curve: np.ndarray | None = None  # (n_beta, 2): beta, held-out loss
 
 
+def prior_block_score(layout: np.ndarray, block: int) -> np.ndarray:
+    """Per-block prior score in [0, 1] from a ``(4, ny, nx)`` layout (roads count half)."""
+    *_, ny, nx = layout.shape
+    mean = layout.reshape(4, ny // block, block, nx // block, block).mean(axis=(2, 4))
+    return np.clip(0.5 * mean[0] + mean[1:].max(axis=0) * 2, 0, 1)
+
+
 def prior_weights(prior_blocks: np.ndarray, floor: float = 0.25) -> np.ndarray:
     """Per-block L1 weights from a prior score in [0, 1]: ``1/(floor + p)``, normalised to mean 1."""
     w = 1.0 / (floor + np.clip(prior_blocks.ravel(), 0.0, 1.0))

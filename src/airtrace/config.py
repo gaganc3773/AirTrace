@@ -78,6 +78,31 @@ class DataConfig(BaseModel):
     sensors: SensorConfig = SensorConfig()
 
 
+class PINNConfig(BaseModel):
+    """Physics-informed network for single-scenario reconstruction."""
+
+    window_hours: float = 8.0  # observation window + 2 h of free spin-up before it
+    iters: int = 15000
+    lr: float = 1e-3
+    n_colloc: int = 8192
+    n_boundary: int = 1024
+    hidden: int = 192
+    depth: int = 4
+    n_fourier: int = 128
+    fourier_sigma: tuple[float, float] = (3.0, 12.0)  # spatial scales (half the features each)
+    fourier_sigma_t: float = 1.5
+    w_data: float = 1.0
+    w_pde: float = 1000.0  # sweep (3k iters): 100 -> RMSE 13.9, data chi2 0.18 (overfit); 1000 -> 11.4, chi2 1.04
+    w_bc: float = 1.0
+    w_sparsity: float = 1e-2
+    near_sensor_frac: float = 0.5  # share of collocation points jittered around sensors
+    near_sensor_sigma: float = 0.03  # jitter, fraction of the domain width (~1.5 km)
+    source_sigma: float = 6.0  # Fourier scale of the source network (coarser than c)
+    causal_eps: float = 1.0
+    stop_chi2: float = 1.0  # Morozov early stopping: stop once data chi²/n (200-iter mean) reaches the noise level
+    causal_bins: int = 16
+
+
 class PathsConfig(BaseModel):
     """Output locations, relative to the project root."""
 
@@ -93,6 +118,7 @@ class Config(BaseModel):
     physics: PhysicsConfig = PhysicsConfig()
     solver: SolverConfig = SolverConfig()
     data: DataConfig = DataConfig()
+    pinn: PINNConfig = PINNConfig()
     paths: PathsConfig = PathsConfig()
 
     def path(self, key: Literal["artifacts", "figures"]) -> Path:

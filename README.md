@@ -2,7 +2,7 @@
 
 Physics-informed PM2.5 source attribution from sparse sensors (Delhi NCR prototype).
 
-> Work in progress. Phases 1-4 (solver, synthetic data, linear baseline, PINN) are complete; the full README with results lands in Phase 8.
+> Work in progress. Phases 1-5 (solver, synthetic data, linear baseline, PINN, FNO ensemble) are complete; the full README with results lands in Phase 8.
 
 ## Setup
 
@@ -15,6 +15,9 @@ python -m venv .venv --system-site-packages
 .venv/Scripts/python scripts/phase2_figures.py
 .venv/Scripts/python scripts/phase3_inversion.py   # ~20 min (Green's functions on GPU)
 .venv/Scripts/python scripts/phase4_pinn.py --scenario 19627
+.venv/Scripts/python scripts/phase5_contributions.py   # ~75 min: per-category concentration fields
+.venv/Scripts/python scripts/phase5_train.py           # ~55 min: 5-member FNO ensemble
+.venv/Scripts/python scripts/phase5_evaluate.py
 ```
 
 ## Phase 1: forward solver
@@ -102,3 +105,89 @@ reconstruction; the FNO (Phase 5) is the fast, amortised model.
 
 ![pinn](reports/figures/phase4_pinn_reconstruction.png)
 ![pinn loss](reports/figures/phase4_pinn_loss.png)
+
+## Phase 5: FNO deep ensemble
+
+A Fourier Neural Operator (4 layers, width 64, 16 modes, zero-padded against wrap-around; ~16M params)
+maps 45 input channels (6 h of rasterised sensor readings + masks + IDW interpolations, hourly wind,
+mixing height, hour of day, OSM priors, coordinates) to 11 outputs: last-hour source maps per category,
+last-hour concentration **per category**, regional background, and c at T and T−1 h. Per-category
+concentration targets come from a linear decomposition run (`phase5_contributions.py`), so attribution
+is a ratio of predicted fields: no solve at click time. Training: 17k scenarios with **random sensor
+networks re-drawn every batch** (5-40 sensors, 5-25% noise, outages), 1k validation, 2k test.
+Five members with different seeds; intervals inflated by a factor κ fitted on validation.
+
+Notes from development:
+- Adding dense IDW channels and more width cut validation error by ~5% and raised the win rate vs
+  kriging from 56% to 70% of scenarios (isolated non-zero pixels are hard for spectral layers).
+- The physics-consistency loss (hour-integrated PDE residual of predicted c with predicted S, trapezoid
+  in time) is non-zero even for the true fields (RMS ~0.5 vs source RMS ~1.4 in scaled units), so at
+  weight 0.1 it blurred outputs; it is kept at 0.02 as a light regulariser.
+- The reference decomposition uses the unlimited linear scheme, which undershoots by up to tens of
+  µg/m³ at sharp plume edges; contributions are clipped at zero when forming shares.
+- The raw ensemble is strongly over-confident (90% intervals cover 38% of field errors, 17% of share
+  errors); κ ≈ 4-5 restores nominal coverage on the test set.
+
+### Source and field metrics
+
+| Subset | Method | Precision | Recall | Loc. err [km] | |ΔQ|/Q | Field RMSE [µg/m³] | Rel. RMSE | Local-share err [pp] |
+|---|---|---|---|---|---|---|---|---|
+| easy | **FNO ensemble** | 0.46 | 0.60 | 3.2 | 0.24 | 20.3 | 0.28 | 10.9 |
+| easy | NNLS-L1 | 0.47 | 0.57 | 4.5 | 0.43 | 19.5 | 0.28 | 9.6 |
+| easy | NNLS-L1 + OSM prior | 0.51 | 0.62 | 3.2 | 0.31 | 18.7 | 0.27 | 10.4 |
+| easy | IDW | – | – | – | – | 22.2 | 0.31 | – |
+| easy | Kriging | – | – | – | – | 21.7 | 0.30 | – |
+| general | **FNO ensemble** | 0.52 | 0.60 | 3.6 | 0.30 | 32.5 | 0.37 | 12.3 |
+| general | NNLS-L1 | 0.48 | 0.52 | 4.5 | 0.47 | 36.0 | 0.40 | 13.1 |
+| general | NNLS-L1 + OSM prior | 0.53 | 0.56 | 3.8 | 0.47 | 34.6 | 0.39 | 12.1 |
+| general | IDW | – | – | – | – | 34.8 | 0.40 | – |
+| general | Kriging | – | – | – | – | 34.4 | 0.39 | – |
+| test (n=2000) | **FNO ensemble** | 0.52 | 0.58 | 3.5 | 0.27 | 32.8 | 0.38 | 11.6 |
+
+### Contribution shares (9 receptors per scenario, FNO ensemble)
+
+| traffic | industry | construction | burning | regional | mean |
+|---|---|---|---|---|---|
+| 8.6 pp | 9.2 pp | 2.4 pp | 6.1 pp | 11.8 pp | 7.6 pp |
+
+### Uncertainty calibration (coverage of nominal 90% intervals, test set)
+
+| Quantity | κ (val) | raw | calibrated |
+|---|---|---|---|
+| field | 3.93 | 0.38 | 0.90 |
+| share | 5.05 | 0.17 | 0.90 |
+
+### Hidden (off-prior) emitters
+
+2652 strong (≥ 15 g/s) off-prior sources in 2000 test scenarios. A 3 km block is flagged when its non-traffic emission has ensemble mean − zσ > 15 g/s and the OSM prior shows no industry, construction or landfill there.
+
+| z | flagged blocks | precision | recall |
+|---|---|---|---|
+| 0.0 | 337 | 0.18 | 0.02 |
+| 1.0 | 82 | 0.23 | 0.01 |
+| 2.0 | 20 | 0.05 | 0.00 |
+
+### Inference time per scenario
+
+| Method | Time |
+|---|---|
+| FNO (1 member, CPU) | 76 ms |
+| FNO ensemble (5, CPU) | 361 ms |
+| FNO ensemble (5, GPU, batched) | 3 ms |
+| NNLS: Green's functions (GPU) | 8.3 s |
+| NNLS: solve (CPU) | 410 ms |
+| PINN training (GPU) | 86.8 s |
+| Kriging (CPU) | 8 ms |
+
+**Reading the results.** On random held-out scenarios the FNO beats every baseline on field error
+(32.5 vs 34.4 kriging, 34.6 NNLS + prior), hotspot recall (0.60 vs 0.56) and total-emission error (0.30 vs
+0.47) at equal precision, and it degrades far more gracefully with fewer sensors (39.7 vs 45.1 kriging and
+52.6 NNLS at 5 sensors) and more noise. On the 30 easy scenarios the Green's-function inversion, which has
+the exact physics, is still slightly better on field error (18.7 vs 20.3). The ensemble answers in ~0.4 s on a
+laptop CPU (5 members) versus ~8.7 s for NNLS. **Hidden-emitter detection from a single 6 h window is weak**
+(recall ≤ 0.02): the network leans on the OSM prior, so off-prior emission is under-predicted.
+
+![sensitivity](reports/figures/phase5_sensitivity.png)
+![examples](reports/figures/phase5_examples.png)
+![calibration](reports/figures/phase5_calibration.png)
+![shares](reports/figures/phase5_shares.png)

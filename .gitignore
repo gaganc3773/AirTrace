@@ -8,3 +8,6 @@ artifacts/datasets/
 *.log
 artifacts/greens/
 artifacts/pinn/
+artifacts/fno*/*.pt
+artifacts/fno_v1/
+artifacts/fno_trial/

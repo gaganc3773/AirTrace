@@ -103,6 +103,30 @@ class PINNConfig(BaseModel):
     causal_bins: int = 16
 
 
+class FNOConfig(BaseModel):
+    """Neural-operator surrogate: architecture, training and on-the-fly sensor augmentation."""
+
+    width: int = 64
+    modes: int = 16
+    layers: int = 4
+    pad: int = 8
+    train_range: tuple[int, int] = (0, 17000)
+    val_range: tuple[int, int] = (17000, 18000)
+    test_range: tuple[int, int] = (18000, 20000)
+    batch_size: int = 32
+    epochs: int = 30
+    lr: float = 1e-3
+    weight_decay: float = 1e-4
+    w_source: float = 1.0
+    w_block: float = 1.0
+    w_phys: float = 0.02  # truth itself has residual RMS ~0.5 under the hour-trapezoid rule; 0.1 blurred outputs
+    n_sensors: tuple[int, int] = (5, 40)
+    noise_range: tuple[float, float] = (0.05, 0.25)
+    dropout_range: tuple[float, float] = (0.0, 0.3)
+    gap_prob: float = 0.05
+    members: int = 5
+
+
 class PathsConfig(BaseModel):
     """Output locations, relative to the project root."""
 
@@ -119,6 +143,7 @@ class Config(BaseModel):
     solver: SolverConfig = SolverConfig()
     data: DataConfig = DataConfig()
     pinn: PINNConfig = PINNConfig()
+    fno: FNOConfig = FNOConfig()
     paths: PathsConfig = PathsConfig()
 
     def path(self, key: Literal["artifacts", "figures"]) -> Path:

@@ -24,6 +24,17 @@ python -m venv .venv --system-site-packages
 
 `configs/default.yaml` is now synth_v2 (see "Sim-to-real fix"). Phases 3 and 4 and the Phase 3 baseline comparison refuse to run on it; reproduce them with `--config configs/synth_v1.yaml` (ensemble weights: `artifacts/fno_synth_v1`).
 
+## Trained weights
+
+The weights aren't in git. Download them from the [v0.7 release](https://github.com/gaganc3773/AirTrace/releases/tag/v0.7) to run the model without retraining:
+
+```bash
+gh release download v0.7 -R gaganc3773/AirTrace -p "member_*.pt" -D artifacts/fno
+gh release download v0.7 -R gaganc3773/AirTrace -p "lab_scenarios.npz" -D app/data
+```
+
+This enables the Scenario lab. The Live map also needs `app/data/real_fields.bin`, which isn't published: rebuild it with `scripts/phase6_fetch.py` and `scripts/phase7_precompute.py --only map,real` using a free OpenAQ key. The precompute step reads the weights but not the training dataset for those two parts.
+
 ## Phase 1: forward solver
 
 Flux-form finite-volume solver for `∂c/∂t + ∇·(uc) = ∇·(K∇c) − λc + S` on a 48 × 48 km, 64 × 64 grid

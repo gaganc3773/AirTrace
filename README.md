@@ -2,7 +2,7 @@
 
 Physics-informed PM2.5 source attribution from sparse sensors (Delhi NCR prototype).
 
-> Work in progress. Phases 1-5 (solver, synthetic data, linear baseline, PINN, FNO ensemble) are complete; the full README with results lands in Phase 8.
+> Work in progress. Phases 1-6 (solver, synthetic data, linear baseline, PINN, FNO ensemble, real Delhi data) are complete; the full README with results lands in Phase 8.
 
 ## Setup
 
@@ -18,6 +18,8 @@ python -m venv .venv --system-site-packages
 .venv/Scripts/python scripts/phase5_contributions.py   # ~75 min: per-category concentration fields
 .venv/Scripts/python scripts/phase5_train.py           # ~55 min: 5-member FNO ensemble
 .venv/Scripts/python scripts/phase5_evaluate.py
+.venv/Scripts/python scripts/phase6_fetch.py          # replays artifacts/cache; an OpenAQ key is needed only to refetch
+.venv/Scripts/python scripts/phase6_validate.py       # ~1 min on GPU
 ```
 
 ## Phase 1: forward solver
@@ -187,7 +189,78 @@ the exact physics, is still slightly better on field error (18.7 vs 20.3). The e
 laptop CPU (5 members) versus ~8.7 s for NNLS. **Hidden-emitter detection from a single 6 h window is weak**
 (recall ≤ 0.02): the network leans on the OSM prior, so off-prior emission is under-predicted.
 
+*Follow-up experiment (not merged).* A dedicated "unknown source" output did not fix this. As an
+emission-map regression it collapsed to zero (2% non-zero pixels); as a per-block classifier it reached
+precision 0.13 / recall 0.14. Prior-free NNLS finds 43% of hidden emitters but at precision 0.09, and NNLS
+with the prior plus residual matched pursuit finds almost none. The emitters are *visible* (in 62% of
+scenarios a sensor gets ≥ 30% of its reading from them), but in one 6 h window of near-steady wind a plume
+constrains its source only to a line upwind, and a mapped source on that line explains it equally well. The
+physically sound remedy is to combine windows with different wind directions so the lines intersect.
+
 ![sensitivity](reports/figures/phase5_sensitivity.png)
 ![examples](reports/figures/phase5_examples.png)
 ![calibration](reports/figures/phase5_calibration.png)
 ![shares](reports/figures/phase5_shares.png)
+
+## Phase 6: real Delhi data
+
+**Data.** Hourly PM2.5 from the OpenAQ v3 API for every reference monitor in the 48 km box (CPCB, DPCC,
+IMD, UPPCB, HSPCB, US Embassy): 128 sensor records, merged to **51 stations** (co-located
+duplicates within 300 m keep the most complete record; ≥ 50% coverage required), quality-controlled
+(non-positive, > 1500 µg/m³ and ≥ 6 h frozen runs removed). Period **1-30 November 2025** (post-monsoon
+smog season; OpenAQ re-registered most Delhi monitors as new sensors in Feb 2025, so earlier years are
+sparse). 90% of station-hours are valid; median 192 µg/m³, 95th percentile 429. Meteorology is ERA5 via
+the Open-Meteo archive (no key): 100 m wind and boundary-layer height averaged over a 3×3 grid of points.
+Indian monitors report IST clock hours (hh:30 UTC), so each station hour is paired with the reanalysis at
+its midpoint. All responses are cached in `artifacts/cache/` (2.4 MB), so the pipeline and demo run offline.
+The key is read from `$OPENAQ_API_KEY` or a git-ignored `.openaq_key` file and never stored elsewhere.
+
+![data](reports/figures/phase6_data.png)
+
+**Leave-one-station-out validation.** Every 3 h (229 windows), each station with a valid reading
+is removed together with any station in the same 750 m cell, and its last-hour PM2.5 is predicted from the
+other stations (11023 predictions). *FNO + residual kriging* adds the kriged misfit of the FNO
+field at the remaining stations (regression kriging), which uses no information from the held-out station.
+
+| Method | RMSE [µg/m³] | MAE | Bias | r | RMSE night (20-08 IST) | RMSE day (08-20) |
+|---|---|---|---|---|---|---|
+| **FNO ensemble** | 84.8 | 59.7 | -13.0 | 0.66 | 93.6 | 74.9 |
+| **FNO + residual kriging** | 80.9 | 54.2 | +4.3 | 0.70 | 91.3 | 68.7 |
+| Kriging | 75.8 | 49.9 | -0.8 | 0.73 | 85.7 | 64.2 |
+| IDW | 77.9 | 51.5 | -3.0 | 0.72 | 87.9 | 66.2 |
+| Network median | 81.7 | 56.3 | -0.4 | 0.68 | 92.7 | 68.9 |
+
+![scatter](reports/figures/phase6_loso_scatter.png)
+![stations](reports/figures/phase6_loso_stations.png)
+![timeseries](reports/figures/phase6_loso_timeseries.png)
+
+**Reading the results honestly.** On real data the synthetic-trained FNO does **not** beat kriging: it is
+worse than kriging and about as good as predicting the network median, and it is biased low by 13 µg/m³.
+Regression kriging removes the bias and recovers part of the gap (80.9
+vs 75.8); it beats kriging at 29% of
+stations. Reasons, in order of likely importance:
+
+1. **Representativeness.** Even the best method only improves on the network median by ~7%. Much of the
+   station-to-station difference is hyper-local (a monitor 20 m from a bus depot, a persistent offset such as
+   IHBAS reading ~80 when its neighbours read 300) and is not predictable from other stations or from a 750 m model.
+2. **Out-of-distribution meteorology.** ERA5 puts the winter night boundary layer at 12-80 m; training spanned
+   175-1560 m, so H was clipped in 68% of hours (wind speed in
+   10%). The model therefore sees far deeper mixing than reality at night,
+   which is consistent with its low bias.
+3. **Simplified emissions and chemistry.** No secondary aerosol formation, no transboundary plumes from Punjab
+   and Haryana crop burning, a uniform background and synthetic emission magnitudes.
+4. **Uncertainty is miscalibrated off-distribution.** The synthetic-data κ = 3.93
+   gives 72% coverage of nominal 90% intervals, not 90%.
+
+**Source shares on real data (full network, mean at the monitors):** traffic 11%,
+industry 5%, construction 1%, burning 2%,
+regional 80%. A dominant regional/background share agrees qualitatively with Delhi
+source-apportionment studies, which attribute most of winter PM2.5 to secondary and transported aerosol; but
+here "regional" is whatever the model cannot explain locally, and the clipped (too deep) mixing height
+shrinks local contributions, so **these numbers are illustrative, not an inventory**.
+
+![attribution](reports/figures/phase6_attribution.png)
+
+Next steps that would address the gap (not done): regenerate training data with mixing heights down to
+~20 m and stronger regional variability; fine-tune on real windows with leave-station-out objectives; or use
+the FNO as the drift term in regression kriging, as above, which is the most robust option today.

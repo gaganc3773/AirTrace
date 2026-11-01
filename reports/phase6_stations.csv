@@ -1,0 +1,52 @@
+name,provider,lon,lat,iy,ix,coverage,mean_pm25
+"R K Puram, Delhi - DPCC",CPCB,77.1869,28.5633,23,36,0.94,239.6
+"Punjabi Bagh, Delhi - DPCC",CPCB,77.1310,28.6740,40,29,0.92,249.3
+"Anand Vihar, New Delhi - DPCC",CPCB,77.3160,28.6468,35,53,0.91,257.8
+"Vikas Sadan, Gurugram - HSPCB",CPCB,77.0263,28.4501,6,15,0.83,124.4
+"Burari Crossing, New Delhi - IMD",CPCB,77.2012,28.7257,47,38,0.92,248.1
+"Aya Nagar, New Delhi - IMD",CPCB,77.1316,28.4743,10,29,0.92,173.6
+"Sirifort, Delhi - CPCB",CPCB,77.2159,28.5504,21,40,0.93,216.8
+"Sector - 125, Noida, UP - UPPCB",CPCB,77.3231,28.5448,20,54,0.88,245.0
+"North Campus, DU, Delhi - IMD",CPCB,77.1585,28.6574,37,33,0.92,223.8
+"ITO, New Delhi - CPCB",CPCB,77.2411,28.6286,33,43,0.92,236.9
+"Sector - 62, Noida, UP - IMD",CPCB,77.3577,28.6245,32,59,0.91,182.0
+"NSIT Dwarka, Delhi - CPCB",CPCB,77.0325,28.6091,30,16,0.94,124.7
+"DTU, New Delhi - CPCB",CPCB,77.1113,28.7500,51,26,0.93,202.6
+"CRRI Mathura Road, New Delhi - IMD",CPCB,77.2736,28.5512,21,48,0.93,214.8
+"Shadipur, Delhi - CPCB",CPCB,77.1473,28.6515,36,31,0.95,138.6
+"Lodhi Road, New Delhi - IMD",CPCB,77.2273,28.5918,27,42,0.91,177.9
+"IGI Airport (T3), Delhi - IMD",CPCB,77.1180,28.5628,23,27,0.93,159.5
+"Vasundhara, Ghaziabad - UPPCB",CPCB,77.3573,28.6603,37,58,0.76,215.4
+"Pusa, Delhi - DPCC",CPCB,77.1463,28.6396,34,31,0.93,209.2
+"Mandir Marg, New Delhi - DPCC",CPCB,77.2011,28.6364,34,38,0.91,184.3
+"IHBAS, Dilshad Garden,New Delhi - CPCB",CPCB,77.3025,28.6812,41,51,0.93,111.5
+"Indirapuram, Ghaziabad - UPPCB",CPCB,77.3581,28.6462,35,59,0.84,176.9
+"Major Dhyan Chand National Stadium, Delhi - DPCC",CPCB,77.2377,28.6113,30,43,0.94,181.6
+"Dwarka-Sector 8, Delhi - DPCC",CPCB,77.0719,28.5710,24,21,0.93,220.0
+"Alipur, Delhi - DPCC",CPCB,77.1530,28.8153,60,32,0.88,236.0
+"Dr. Karni Singh Shooting Range, Delhi - DPCC",CPCB,77.2648,28.4986,13,46,0.95,217.0
+"Arya Nagar, Bahadurgarh - HSPCB",CPCB,76.9254,28.6701,39,2,0.80,198.9
+"Vivek Vihar, Delhi - DPCC",CPCB,77.3153,28.6723,39,53,0.93,271.7
+"Jawaharlal Nehru Stadium, Delhi - DPCC",CPCB,77.2338,28.5803,26,42,0.94,213.2
+"Patparganj, Delhi - DPCC",CPCB,77.2872,28.6237,32,49,0.93,232.8
+"Sector-1, Noida - UPPCB",CPCB,77.3220,28.5892,27,54,0.90,210.2
+"Sector-116, Noida - UPPCB",CPCB,77.3938,28.5692,24,63,0.85,235.4
+"Loni, Ghaziabad - UPPCB",CPCB,77.2788,28.7573,52,48,0.87,289.4
+New Delhi,AirNow,77.2245,28.6358,34,41,0.84,203.6
+"Jahangirpuri, Delhi - DPCC",CPCB,77.1706,28.7328,48,34,0.93,283.0
+"Okhla Phase-2, Delhi - DPCC",CPCB,77.2713,28.5308,18,47,0.91,216.0
+"Nehru Nagar, Delhi - DPCC",CPCB,77.2505,28.5679,24,45,0.94,254.9
+"Bawana, Delhi - DPCC",CPCB,77.0511,28.7762,55,19,0.94,294.6
+"Sonia Vihar, Delhi - DPCC",CPCB,77.2495,28.7105,45,44,0.93,241.9
+"Wazirpur, Delhi - DPCC",CPCB,77.1655,28.6998,43,34,0.93,286.2
+"Ashok Vihar, Delhi - DPCC",CPCB,77.1817,28.6954,43,36,0.94,258.6
+"Sri Aurobindo Marg, Delhi - DPCC",CPCB,77.1902,28.5313,18,37,0.93,175.1
+"Narela, Delhi - DPCC",CPCB,77.1020,28.8228,62,25,0.94,265.3
+"Mundka, Delhi - DPCC",CPCB,77.0766,28.6847,41,22,0.94,267.0
+"Najafgarh, Delhi - DPCC",CPCB,76.9338,28.5702,24,3,0.91,182.7
+"Sector-51, Gurugram - HSPCB",CPCB,77.0667,28.4227,2,21,0.91,155.7
+"Rohini, Delhi - DPCC",CPCB,77.1199,28.7325,48,28,0.94,285.2
+"Teri Gram, Gurugram - HSPCB",CPCB,77.1465,28.4275,3,31,0.52,107.9
+"NISE Gwal Pahari, Gurugram - IMD",CPCB,77.1489,28.4227,2,31,0.92,179.5
+"Chandni Chowk, Delhi - IITM",CPCB,77.2272,28.6568,37,42,0.79,225.7
+"Lodhi Road, Delhi - IITM",CPCB,77.2217,28.5883,27,41,0.90,125.5

@@ -11,3 +11,5 @@ artifacts/pinn/
 artifacts/fno*/*.pt
 artifacts/fno_v1/
 artifacts/fno_trial/
+# OpenAQ API key (never commit)
+.openaq_key

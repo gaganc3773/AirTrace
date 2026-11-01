@@ -127,6 +127,18 @@ class FNOConfig(BaseModel):
     members: int = 5
 
 
+class RealConfig(BaseModel):
+    """Real Delhi observations (Phase 6): period, sources and quality control."""
+
+    start: str = "2025-11-01"  # UTC dates, inclusive: the post-monsoon smog season. OpenAQ re-registered
+    end: str = "2025-11-30"  # most Delhi monitors as new sensors in Feb 2025, so earlier years are sparse
+    monitors_only: bool = True  # OpenAQ reference monitors (CPCB / DPCC / IMD), not low-cost sensors
+    met_points: int = 3  # Open-Meteo sampled on an n x n grid and averaged over the domain
+    max_pm25: float = 1500.0
+    stuck_hours: int = 6
+    eval_stride_hours: int = 3  # leave-one-station-out windows every N hours
+
+
 class PathsConfig(BaseModel):
     """Output locations, relative to the project root."""
 
@@ -144,6 +156,7 @@ class Config(BaseModel):
     data: DataConfig = DataConfig()
     pinn: PINNConfig = PINNConfig()
     fno: FNOConfig = FNOConfig()
+    real: RealConfig = RealConfig()
     paths: PathsConfig = PathsConfig()
 
     def path(self, key: Literal["artifacts", "figures"]) -> Path:

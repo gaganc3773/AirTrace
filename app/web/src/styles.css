@@ -1,0 +1,100 @@
+@import "tailwindcss";
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+
+@theme {
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --color-ink: #080d17;
+  --color-panel: #101725;
+  --color-panel-2: #172033;
+  --color-line: #263146;
+  --color-text: #e8ecf4;
+  --color-dim: #98a3b8;
+  --color-accent: #2dd4bf;
+  --color-warn: #fbbf24;
+  --color-traffic: #60a5fa;
+  --color-industry: #f59e0b;
+  --color-construction: #a78bfa;
+  --color-burning: #f87171;
+  --color-regional: #94a3b8;
+  --color-unmapped: #38bdf8;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-ink);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.panel {
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.btn {
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  padding: 4px 10px;
+  color: var(--color-dim);
+  font-size: 12px;
+  cursor: pointer;
+  background: transparent;
+  transition: color 120ms, border-color 120ms, background 120ms;
+}
+.btn:hover {
+  color: var(--color-text);
+  border-color: var(--color-dim);
+}
+.btn[aria-pressed="true"] {
+  color: var(--color-ink);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  font-weight: 500;
+}
+.btn:focus-visible,
+input:focus-visible,
+select:focus-visible,
+tr:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--color-accent);
+}
+
+select {
+  background: var(--color-panel-2);
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  color: var(--color-text);
+  padding: 4px 8px;
+  font-size: 13px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

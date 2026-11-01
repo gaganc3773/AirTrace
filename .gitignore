@@ -13,3 +13,9 @@ artifacts/fno_v1/
 artifacts/fno_trial/
 # OpenAQ API key (never commit)
 .openaq_key
+
+# web app: dependencies, build output and the generated data pack
+node_modules/
+app/web/dist/
+app/data/real_fields.bin
+app/data/lab_scenarios.npz

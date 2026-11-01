@@ -2,7 +2,7 @@
 
 Physics-informed PM2.5 source attribution from sparse sensors (Delhi NCR prototype).
 
-> Work in progress. Phases 1-6 (solver, synthetic data, linear baseline, PINN, FNO ensemble, real Delhi data) are complete; the full README with results lands in Phase 8.
+> Work in progress. Phases 1-7 (solver, synthetic data, linear baseline, PINN, FNO ensemble, real Delhi data, web app) are complete; the full README with results lands in Phase 8.
 
 ## Setup
 
@@ -313,3 +313,37 @@ synth_v1 table (a different, background-dominated problem) and have no baselines
 
 ![attribution v2](reports/figures/phase6_attribution.png)
 ![timeseries v2](reports/figures/phase6_loso_timeseries.png)
+
+## Phase 7: web app
+
+A React and Node app with a Python model service. It runs on a laptop CPU and needs no network once built.
+
+```bash
+.venv/Scripts/python scripts/phase7_hidden.py --trials 10 --nights 5   # ~1-2 h
+.venv/Scripts/python scripts/phase7_precompute.py                      # builds app/data
+npm --prefix app install
+npm --prefix app start                                                 # http://localhost:3000
+npm --prefix app test
+```
+
+Screens: **Live map** (real November 2025: kriging for PM2.5, labelled FNO source estimates), **Scenario lab** (simulated cities
+with the truth shown: sensors, noise, custom layouts, a wind what-if), **Hidden emitter**, **Evidence** and **How it works**.
+
+**Priority list, tested where the truth is known** (top-5 blocks within one block of a true source ≥ 15 g/s, 600 held-out synth_v2
+scenarios, domain-edge blocks excluded): FNO ranking 63%, OSM map alone 61%, random 29%. So it adds little
+beyond the map from a single window. Its Gaussian probabilities are overconfident, so the lab shows measured hit rates and the
+real-data list shows a ranking only. It is unvalidated on real data, and blocks are described relative to public monitors, not businesses.
+
+**Hidden emitter: do changing winds locate an unmapped night-only source?** Prior-free NNLS, real monitor cells, consecutive
+20:00-02:00 windows of ERA5 weather, matched controls without the source, 10 trials (strong sources, 30-80 g/s daily mean):
+
+| Nights combined | Median error | Top block within one block | Top score beats control |
+|---|---|---|---|
+| 1 | 20.2 km | 20% | 63% |
+| 2 | 17.2 km | 30% | 66% |
+| 3 | 12.0 km | 30% | 74% |
+| 5 | 6.6 km | 50% | 66% |
+
+Chance of a hit for a random block: about 6%. Localisation improves with more nights, which supports the idea, but 10 trials is
+few (5 of 10 has a wide interval), and the sources are strong. The score separates hidden from control only weakly and doesn't
+improve steadily, so this can suggest where to look but not whether a source is there. This used physics inversion, not the FNO.

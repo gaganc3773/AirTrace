@@ -111,6 +111,8 @@ def main() -> None:
     parser.add_argument("--pilot", type=int, default=0)
     args = parser.parse_args()
     cfg = load_config(args.config)
+    if cfg.physics.entrainment:
+        parser.error("Phase 3 assumes synth_v1 physics (no entrainment) and its cached results: use --config configs/synth_v1.yaml")
     set_style()
     grid = Grid.from_config(cfg.domain)
     ds = SyntheticDataset(cfg.path("artifacts") / "datasets" / cfg.data.name)

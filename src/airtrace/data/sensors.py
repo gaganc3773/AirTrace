@@ -28,15 +28,35 @@ def sample_sensor_cells(rng: np.random.Generator, n: int, grid: Grid, min_dist_m
     return np.array(cells, dtype=np.int16)
 
 
+def log_error(rng: np.random.Generator, shape: tuple[int, int], noise: float, bias: float = 0.0, rho: float = 0.0
+              ) -> np.ndarray:
+    """Log measurement error ``(n, W)``: a persistent per-sensor offset ``N(0, bias²)`` plus an
+    AR(1) hourly part with stationary s.d. ``noise`` and lag-1 correlation ``rho``, mean-corrected
+    so that the multiplicative error has expectation 1.
+
+    Real Delhi monitors show both: a persistent offset (log s.d. ~0.19 relative to the network
+    median, Dec 2025) and hourly deviations (~0.34) with lag-1 autocorrelation ~0.7.
+    """
+    n, W = shape
+    eps = rng.normal(0.0, 1.0, shape)
+    a = np.empty(shape)
+    a[:, 0] = noise * eps[:, 0]
+    for k in range(1, W):
+        a[:, k] = rho * a[:, k - 1] + np.sqrt(1 - rho**2) * noise * eps[:, k]
+    return a + rng.normal(0.0, bias, (n, 1)) - (noise**2 + bias**2) / 2
+
+
 def observe(
-    rng: np.random.Generator, c_hourly: np.ndarray, cells: np.ndarray, noise: float, dropout: float, gap_prob: float
+    rng: np.random.Generator, c_hourly: np.ndarray, cells: np.ndarray, noise: float, dropout: float, gap_prob: float,
+    bias: float = 0.0, rho: float = 0.0,
 ) -> np.ndarray:
     """Noisy hourly readings ``(n, W)``; NaN where a sensor is offline or has a gap.
 
-    Error model: unbiased multiplicative lognormal ``c * exp(N(0, σ²) - σ²/2)``.
+    Error model: multiplicative lognormal ``c * exp(e)`` with ``e`` from :func:`log_error`
+    (white noise with s.d. ``noise`` when ``bias = rho = 0``).
     """
     truth = c_hourly[:, cells[:, 0], cells[:, 1]].T.astype(np.float64)  # (n, W)
-    r = truth * np.exp(rng.normal(0.0, noise, truth.shape) - noise**2 / 2)
+    r = truth * np.exp(log_error(rng, truth.shape, noise, bias, rho))
     offline = rng.random(len(cells)) < dropout
     gaps = rng.random(truth.shape) < gap_prob
     r[offline] = np.nan
@@ -50,7 +70,9 @@ def sample_network(
     """Default network for one scenario: ``(cells, readings, noise_sigma)``."""
     cells = sample_sensor_cells(rng, cfg.n_sensors, grid, cfg.min_dist_m)
     noise = rng.uniform(*cfg.noise_range)
-    readings = observe(rng, c_hourly, cells, noise, rng.uniform(*cfg.dropout_range), cfg.hourly_gap_prob)
+    bias = rng.uniform(*cfg.bias_range) if cfg.bias_range[1] > 0 else 0.0
+    readings = observe(rng, c_hourly, cells, noise, rng.uniform(*cfg.dropout_range), cfg.hourly_gap_prob,
+                       bias, cfg.noise_rho)
     return cells, readings, noise
 
 

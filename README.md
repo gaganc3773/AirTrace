@@ -22,6 +22,8 @@ python -m venv .venv --system-site-packages
 .venv/Scripts/python scripts/phase6_validate.py       # ~1 min on GPU
 ```
 
+`configs/default.yaml` is now synth_v2 (see "Sim-to-real fix"). Phases 3 and 4 and the Phase 3 baseline comparison refuse to run on it; reproduce them with `--config configs/synth_v1.yaml` (ensemble weights: `artifacts/fno_synth_v1`).
+
 ## Phase 1: forward solver
 
 Flux-form finite-volume solver for `∂c/∂t + ∇·(uc) = ∇·(K∇c) − λc + S` on a 48 × 48 km, 64 × 64 grid
@@ -202,7 +204,7 @@ physically sound remedy is to combine windows with different wind directions so 
 ![calibration](reports/figures/phase5_calibration.png)
 ![shares](reports/figures/phase5_shares.png)
 
-## Phase 6: real Delhi data
+## Phase 6: real Delhi data (first model, trained on synth_v1)
 
 **Data.** Hourly PM2.5 from the OpenAQ v3 API for every reference monitor in the 48 km box (CPCB, DPCC,
 IMD, UPPCB, HSPCB, US Embassy): 128 sensor records, merged to **51 stations** (co-located
@@ -230,9 +232,9 @@ field at the remaining stations (regression kriging), which uses no information 
 | IDW | 77.9 | 51.5 | -3.0 | 0.72 | 87.9 | 66.2 |
 | Network median | 81.7 | 56.3 | -0.4 | 0.68 | 92.7 | 68.9 |
 
-![scatter](reports/figures/phase6_loso_scatter.png)
-![stations](reports/figures/phase6_loso_stations.png)
-![timeseries](reports/figures/phase6_loso_timeseries.png)
+![scatter](reports/figures/phase6_loso_scatter_synth_v1.png)
+![stations](reports/figures/phase6_loso_stations_synth_v1.png)
+![timeseries](reports/figures/phase6_loso_timeseries_synth_v1.png)
 
 **Reading the results honestly.** On real data the synthetic-trained FNO does **not** beat kriging: it is
 worse than kriging and about as good as predicting the network median, and it is biased low by 13 µg/m³.
@@ -259,8 +261,55 @@ source-apportionment studies, which attribute most of winter PM2.5 to secondary 
 here "regional" is whatever the model cannot explain locally, and the clipped (too deep) mixing height
 shrinks local contributions, so **these numbers are illustrative, not an inventory**.
 
-![attribution](reports/figures/phase6_attribution.png)
+![attribution](reports/figures/phase6_attribution_synth_v1.png)
 
 Next steps that would address the gap (not done): regenerate training data with mixing heights down to
 ~20 m and stronger regional variability; fine-tune on real windows with leave-station-out objectives; or use
 the FNO as the drift term in regression kriging, as above, which is the most robust option today.
+
+## Sim-to-real fix: synth_v2
+
+The diagnosis above led to a second dataset and a retrained ensemble (`configs/default.yaml`):
+
+- **Real meteorology:** 30 h segments of ERA5 100 m wind and boundary-layer height from Oct-Dec 2019-2024,
+  with small rotation and speed jitter. November 2025 (test) and December 2025 (calibration) are excluded.
+- **Entrainment:** a deepening mixed layer dilutes the local excess at rate max(d ln H/dt, 0), with the regional
+  term adjusted so that a uniform background c_bg(t) stays an exact solution (tested). This exposed a lag in the
+  forcing, now fixed: the background is evaluated at the middle of each 10 min step, not held at its hourly value.
+- **Monitor error model:** a persistent per-sensor log offset plus AR(1) hourly error (ρ = 0.7), measured from real
+  station residuals (offset log s.d. 0.19, hourly 0.34).
+- **Calibration on December 2025 only** (`scripts/phase6_calibrate.py`):
+
+| | Network median p10 / p50 / p90 [µg/m³] | Station spread | Night/day | Hourly change |
+|---|---|---|---|---|
+| Real, Dec 2025 | 110 / 200 / 325 | 0.68 | 1.26 | 0.05 |
+| synth_v2 | 112 / 198 / 326 | 0.69 | 1.30 | 0.04 |
+
+Matching the night/day ratio required an **effective mixing depth floor of 150 m**, a calibrated parameter: with raw
+ERA5 nights (~30 m) the simulator doubles night-time PM2.5. It applies in 63% of real hours.
+
+**Result on the untouched test month** (leave-one-station-out, November 2025; kriging: RMSE 75.8, bias -0.8, r = 0.73):
+
+| Method | RMSE v1 | RMSE v2 | Bias v1 | Bias v2 | r v1 | r v2 |
+|---|---|---|---|---|---|---|
+| FNO ensemble | 84.8 | 82.9 | -13.0 | +3.4 | 0.66 | 0.67 |
+| FNO + residual kriging | 80.9 | 81.0 | +4.3 | -0.5 | 0.70 | 0.69 |
+
+**The simulator now matches real statistics, but this did not close the gap.** The FNO's bias is gone and its RMSE improved
+slightly, but it still loses to kriging at station-level prediction, is about level with the network median
+(81.7), and residual kriging gained nothing. It beats kriging at
+22% of stations. Uncertainty got worse: nominal 90% intervals cover
+54% of held-out readings (v1: 72%), so **ensemble
+intervals are not trustworthy on real data**, though they remain calibrated on synthetic data.
+
+Mean shares at the monitors: regional 84%, traffic 9%, industry
+5%, burning 2%, construction 0%. There is **no ground truth
+for these on real data**: held-out stations test total PM2.5 only, not the split between sources. Their dominant regional share also partly
+reflects the calibration, which fixes the background level. Treat them as model output, not an inventory.
+
+On held-out synth_v2 scenarios (n = 2000): hotspot precision 0.51, recall 0.68, localisation
+3.2 km, field RMSE 33.8 µg/m³, mean share error 4.1 pp. These are not comparable with the
+synth_v1 table (a different, background-dominated problem) and have no baselines on synth_v2. Hidden-emitter recall stays ≤ 0.01.
+
+![attribution v2](reports/figures/phase6_attribution.png)
+![timeseries v2](reports/figures/phase6_loso_timeseries.png)

@@ -21,6 +21,7 @@ from airtrace.attribution.contrib import (SHARE_NAMES, Z90, calibrate_kappa, cov
                                           receptor_shares)
 from airtrace.config import load_config
 from airtrace.data.dataset import SyntheticDataset
+from airtrace.data.synthetic import last_hour_background
 from airtrace.eval.interpolation import idw, kriging
 from airtrace.eval.metrics import detect, window_source_strength
 from airtrace.eval.plotting import FIELD_CMAP, PALETTE, savefig, set_style
@@ -35,6 +36,7 @@ BLOCK, TAU, SRC_MIN = 4, 15.0, 10.0
 N_SENSORS = (5, 10, 20, 40)
 NOISE = (0.05, 0.10, 0.20, 0.30)
 HIDDEN_Z = (0.0, 1.0, 2.0)
+TAG = ""  # output suffix, e.g. "_synth_v2"
 LEVELS = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95])
 
 
@@ -65,7 +67,7 @@ def run_ensemble(models, data, ds, idx, grid, dev, values=None, masks=None) -> P
 def truth_shares(ds, i, receptors) -> np.ndarray:
     d = ds.get(int(i), ("c_cat", "c_bg"))
     c_cat = d["c_cat"].astype(np.float64)
-    return np.stack([receptor_shares(c_cat, d["c_bg"][-1], iy, ix) for iy, ix in receptors])  # (9, 5)
+    return np.stack([receptor_shares(c_cat, last_hour_background(d["c_bg"]), iy, ix) for iy, ix in receptors])  # (9, 5)
 
 
 def unseen_mask(masks: torch.Tensor) -> np.ndarray:
@@ -91,9 +93,17 @@ def main() -> None:
     parser.add_argument("--config", default=None)
     parser.add_argument("--n-test", type=int, default=2000)
     parser.add_argument("--quick", action="store_true", help="debug run: 10 scenarios in the sensitivity curves")
+    parser.add_argument("--no-baselines", action="store_true",
+                        help="skip the Phase 3 comparisons (they were computed on synth_v1 scenarios)")
+    parser.add_argument("--tag", default="", help="suffix for report and figure names")
     args = parser.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")  # Windows consoles default to cp1252
     cfg = load_config(args.config)
+    if cfg.physics.entrainment and not args.no_baselines:
+        parser.error("the Phase 3 baselines were computed on synth_v1: pass --no-baselines, or use configs/synth_v1.yaml "
+                     "with the weights in artifacts/fno_synth_v1")
+    global TAG
+    TAG = args.tag
     fc = cfg.fno
     set_style()
     dev = "cuda" if torch.cuda.is_available() else "cpu"
@@ -106,7 +116,7 @@ def main() -> None:
     report = cfg.path("artifacts").parent / "reports"
     out = cfg.path("figures")
     receptors = receptor_cells(grid)
-    phase3 = json.loads((report / "phase3_metrics.json").read_text())
+    phase3 = None if args.no_baselines else json.loads((report / "phase3_metrics.json").read_text())
     print(f"{len(models)} members")
 
     # ---- calibration on the validation split
@@ -156,7 +166,7 @@ def main() -> None:
 
     # ---- comparison on the Phase 3 subsets
     table = {}
-    for subset in ("easy", "general"):
+    for subset in () if phase3 is None else ("easy", "general"):
         idx = [i for i in phase3[subset] if i in rows]
         table[f"{subset}|FNO ensemble"] = summarize([rows[i] for i in idx])
         for m in ("NNLS-L1", "NNLS-L1 + OSM prior", "IDW", "Kriging"):
@@ -164,18 +174,19 @@ def main() -> None:
     table["test (n=%d)|FNO ensemble" % len(test)] = summarize(list(rows.values()))
 
     # ---- sensitivity curves on the Phase 3 "general" scenarios (all methods on identical inputs)
-    gen = phase3["general"][:10] if args.quick else phase3["general"]
-    curves = sensitivity(models, data, ds, gen, grid, dev, cfg)
-
-    # ---- inference time
-    timing = time_methods(models, data, ds, gen[0], grid, cfg, report, gpu_s, phase3)
+    curves, timing = {}, {}
+    if phase3 is not None:
+        gen = phase3["general"][:10] if args.quick else phase3["general"]
+        curves = sensitivity(models, data, ds, gen, grid, dev, cfg)
+        # ---- inference time
+        timing = time_methods(models, data, ds, gen[0], grid, cfg, report, gpu_s, phase3)
 
     hidden = {str(z): {"precision": h["tp_pred"] / max(h["n_pred"], 1), "recall": h["tp_true"] / max(h["n_true"], 1),
                        "n_true": h["n_true"], "n_flagged": h["n_pred"]} for z, h in hid.items()}
     summary = {"table": table, "calibration": cal, "coverage": calib, "levels": LEVELS.tolist(),
                "share_err_pp": {n: float(share_err[..., k].mean()) for k, n in enumerate(SHARE_NAMES)},
                "share_err_pp_mean": float(share_err.mean()), "hidden_emitters": hidden, "curves": curves, "timing": timing}
-    (report / "phase5_metrics.json").write_text(json.dumps(summary, indent=2))
+    (report / f"phase5_metrics{TAG}.json").write_text(json.dumps(summary, indent=2))
     write_markdown(summary, report, len(test))
     figures(summary, p, test, ds, data, grid, out, dev, masks, receptors, models)
 
@@ -302,13 +313,19 @@ def write_markdown(s: dict, report, n_test: int) -> None:
     L += ["", "## Inference time per scenario", "", "| Method | Time |", "|---|---|"]
     for k, v in s["timing"].items():
         L.append(f"| {k} | {v * 1000:.0f} ms |" if v < 1 else f"| {k} | {v:.1f} s |")
-    (report / "phase5_metrics.md").write_text("\n".join(L) + "\n", encoding="utf-8")
+    (report / f"phase5_metrics{TAG}.md").write_text("\n".join(L) + "\n", encoding="utf-8")
     print("\n".join(L))
 
 
 def figures(s, p, test, ds, data, grid, out, dev, masks, receptors, models) -> None:
     colors = {"FNO ensemble": PALETTE[0], "NNLS-L1 + OSM prior": PALETTE[1], "NNLS-L1": PALETTE[5],
               "Kriging": PALETTE[2], "IDW": PALETTE[3]}
+    if s["curves"]:
+        baseline_figures(s, out, colors)
+    calibration_and_examples(s, p, test, ds, grid, out, masks, receptors)
+
+
+def baseline_figures(s, out, colors) -> None:
     # 1. method comparison
     fig, axes = plt.subplots(1, 4, figsize=(17, 4), layout="constrained")
     meths = ["FNO ensemble", "NNLS-L1 + OSM prior", "NNLS-L1", "Kriging", "IDW"]
@@ -322,7 +339,7 @@ def figures(s, p, test, ds, data, grid, out, dev, masks, receptors, models) -> N
                       fontsize=8)
         ax.set_title(lab)
     axes[0].text(0.02, 0.97, "light: easy (n=30)\ndark: random (n=100)", transform=axes[0].transAxes, va="top", fontsize=8)
-    print("saved", savefig(fig, out, "phase5_method_comparison"))
+    print("saved", savefig(fig, out, "phase5_method_comparison" + TAG))
 
     # 2. sensitivity
     c = s["curves"]
@@ -338,8 +355,20 @@ def figures(s, p, test, ds, data, grid, out, dev, masks, receptors, models) -> N
     axes[2].set(xlabel="sensor noise σ (multiplicative)", ylabel="field RMSE [µg/m³]", title="Field error vs noise")
     axes[3].set(xlabel="sensor noise σ (multiplicative)", ylabel="hotspot recall", title="Source recall vs noise")
     axes[0].legend(fontsize=8)
-    print("saved", savefig(fig, out, "phase5_sensitivity"))
+    print("saved", savefig(fig, out, "phase5_sensitivity" + TAG))
 
+
+    # 4. timing
+    fig, ax = plt.subplots(figsize=(8, 3.6), layout="constrained")
+    names, vals = list(s["timing"]), list(s["timing"].values())
+    ax.barh(names, vals, color=[PALETTE[0] if "FNO" in n else PALETTE[2] for n in names])
+    ax.set(xscale="log", xlabel="seconds per scenario", title="Inference time")
+    ax.axvline(1.0, color="grey", ls="--", lw=0.8)
+    ax.text(1.05, len(names) - 0.6, "1 s (interactive)", fontsize=8, color="grey")
+    print("saved", savefig(fig, out, "phase5_inference_time" + TAG))
+
+
+def calibration_and_examples(s, p, test, ds, grid, out, masks, receptors) -> None:
     # 3. calibration
     fig, axes = plt.subplots(1, 2, figsize=(10, 4.2), layout="constrained")
     for ax, kind in zip(axes, ("field", "share")):
@@ -351,16 +380,8 @@ def figures(s, p, test, ds, data, grid, out, dev, masks, receptors, models) -> N
                title="Field at unseen cells" if kind == "field" else "Contribution shares at receptors",
                xlim=(0, 1), ylim=(0, 1))
         ax.legend(fontsize=8)
-    print("saved", savefig(fig, out, "phase5_calibration"))
+    print("saved", savefig(fig, out, "phase5_calibration" + TAG))
 
-    # 4. timing
-    fig, ax = plt.subplots(figsize=(8, 3.6), layout="constrained")
-    names, vals = list(s["timing"]), list(s["timing"].values())
-    ax.barh(names, vals, color=[PALETTE[0] if "FNO" in n else PALETTE[2] for n in names])
-    ax.set(xscale="log", xlabel="seconds per scenario", title="Inference time")
-    ax.axvline(1.0, color="grey", ls="--", lw=0.8)
-    ax.text(1.05, len(names) - 0.6, "1 s (interactive)", fontsize=8, color="grey")
-    print("saved", savefig(fig, out, "phase5_inference_time"))
 
     # 5. examples with uncertainty
     pick = [0, 1, 2, 3]
@@ -391,7 +412,7 @@ def figures(s, p, test, ds, data, grid, out, dev, masks, receptors, models) -> N
             ax.grid(False)
             fig.colorbar(im, ax=ax, shrink=0.8)
         row[0].set_ylabel(f"#{i}")
-    print("saved", savefig(fig, out, "phase5_examples"))
+    print("saved", savefig(fig, out, "phase5_examples" + TAG))
 
     # 6. shares with intervals at the domain-centre receptor for 4 scenarios
     kappa = s["calibration"]["kappa_share"]
@@ -409,7 +430,7 @@ def figures(s, p, test, ds, data, grid, out, dev, masks, receptors, models) -> N
         ax.set_title(f"#{i}: share of PM2.5 at the city centre", fontsize=9)
     axes[0].set_ylabel("contribution [%]")
     axes[0].legend(fontsize=8)
-    print("saved", savefig(fig, out, "phase5_shares"))
+    print("saved", savefig(fig, out, "phase5_shares" + TAG))
 
     # 7. training curves
     hist = json.loads((cfg_path(out) / "histories.json").read_text()) if (cfg_path(out) / "histories.json").exists() else {}
@@ -423,7 +444,7 @@ def figures(s, p, test, ds, data, grid, out, dev, masks, receptors, models) -> N
         a1.set(xlabel="epoch", ylabel="loss (solid train, dashed val)", title="FNO training")
         a2.set(xlabel="epoch", ylabel="val field RMSE [µg/m³]", title="Validation (stored sensor networks)")
         a2.legend(fontsize=8)
-        print("saved", savefig(fig, out, "phase5_training"))
+        print("saved", savefig(fig, out, "phase5_training" + TAG))
 
 
 def cfg_path(figures_dir):

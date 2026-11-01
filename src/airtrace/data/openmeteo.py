@@ -54,6 +54,35 @@ def fetch_met(proj: LocalProjection, start: str, end: str, cache_dir: Path, n: i
     return parse_met(raw)
 
 
+@dataclass
+class MetBank:
+    """Concatenated hourly ERA5 records from several seasons, for sampling training meteorology."""
+
+    times: np.ndarray  # (N,) datetime64[h] UTC
+    u: np.ndarray  # (N,)
+    v: np.ndarray
+    H: np.ndarray
+    season: np.ndarray  # (N,) int, contiguous record id
+
+    def starts(self, length: int) -> np.ndarray:
+        """Indices ``s`` such that ``s .. s + length`` lie in one season with finite values."""
+        n = len(self.times)
+        s = np.arange(max(n - length, 0))
+        ok = self.season[s] == self.season[s + length]
+        bad = ~np.isfinite(self.u + self.v + self.H)
+        cum = np.concatenate([[0], np.cumsum(bad)])
+        ok &= (cum[s + length + 1] - cum[s]) == 0
+        return s[ok]
+
+
+def met_bank(proj: LocalProjection, seasons: list[tuple[str, str]], cache_dir: Path, n: int = 3) -> MetBank:
+    """Fetch (or replay) each season and concatenate."""
+    parts = [fetch_met(proj, a, b, cache_dir, n) for a, b in seasons]
+    cat = lambda k: np.concatenate([getattr(p, k) for p in parts])  # noqa: E731
+    return MetBank(cat("times"), cat("u"), cat("v"), cat("H"),
+                   np.concatenate([np.full(len(p.times), k) for k, p in enumerate(parts)]))
+
+
 def parse_met(raw: list[dict]) -> HourlyMet:
     """Turn Open-Meteo multi-location responses into domain-mean hourly series."""
     times = np.array(raw[0]["hourly"]["time"], dtype="datetime64[h]")

@@ -19,7 +19,7 @@ Output channels (11), all ≥ 0 and in units of ``s``:
 
     0-3  S per category during the last hour [µg m^-3 h^-1 / s]
     4-7  last-hour mean concentration due to each category
-    8    regional background (spatially averaged into one number)
+    8    regional background, last-hour mean (spatially averaged into one number)
     9    instantaneous c at the window end, 10: one hour before
 """
 
@@ -31,6 +31,7 @@ import numpy as np
 import torch
 
 from airtrace.data.dataset import SyntheticDataset
+from airtrace.data.synthetic import last_hour_background
 from airtrace.grid import Grid
 
 N_IN, N_OUT = 45, 11
@@ -102,9 +103,15 @@ def build_inputs(values: torch.Tensor, mask: torch.Tensor, met: Met) -> tuple[to
 
 
 def sample_networks(c_hourly: torch.Tensor, n_range: tuple[int, int], noise_range: tuple[float, float],
-                    dropout_range: tuple[float, float], gap_prob: float, gen: torch.Generator
+                    dropout_range: tuple[float, float], gap_prob: float, gen: torch.Generator,
+                    bias_range: tuple[float, float] = (0.0, 0.0), rho: float = 0.0
                     ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Random sensor networks on the fly: ``n`` distinct cells per sample, lognormal noise, outages."""
+    """Random sensor networks on the fly: ``n`` distinct cells per sample, lognormal noise, outages.
+
+    The log error is a persistent per-sensor offset (s.d. drawn from ``bias_range``) plus an
+    AR(1) hourly part (s.d. from ``noise_range``, lag-1 correlation ``rho``); see
+    :func:`airtrace.data.sensors.log_error`.
+    """
     B, W, ny, nx = c_hourly.shape
     dev = c_hourly.device
     N = ny * nx
@@ -114,9 +121,14 @@ def sample_networks(c_hourly: torch.Tensor, n_range: tuple[int, int], noise_rang
     dropout = dropout_range[0] + (dropout_range[1] - dropout_range[0]) * r(B)
     online = (rank < n[:, None]) & (r(B, N) >= dropout[:, None])
     mask = (online[:, None, :] & (r(B, W, N) >= gap_prob)).float().reshape(B, W, ny, nx)
-    sigma = noise_range[0] + (noise_range[1] - noise_range[0]) * r(B)
+    sigma = (noise_range[0] + (noise_range[1] - noise_range[0]) * r(B))[:, None, None]
+    beta = (bias_range[0] + (bias_range[1] - bias_range[0]) * r(B))[:, None, None]
     z = torch.randn(B, W, ny, nx, generator=gen, device=dev)
-    noisy = c_hourly * torch.exp(sigma[:, None, None, None] * z - sigma[:, None, None, None] ** 2 / 2)
+    a = [sigma * z[:, 0]]
+    for k in range(1, W):
+        a.append(rho * a[-1] + (1 - rho**2) ** 0.5 * sigma * z[:, k])
+    e = torch.stack(a, 1) + (beta * torch.randn(B, ny, nx, generator=gen, device=dev))[:, None]
+    noisy = c_hourly * torch.exp(e - ((sigma**2 + beta**2) / 2)[:, None])
     return noisy * mask, mask
 
 
@@ -153,6 +165,7 @@ class GPUData:
         T = ds.meta["config"]["data"]["sim_hours"]
         self.spec = {k: to(cat(k)[:, T - window - 1:], torch.float32) for k in SPEC_WINDOW_KEYS}  # W + 1 hours
         self.n = self.c_hourly.shape[0]
+        self.entrainment = bool(ds.meta["config"]["physics"].get("entrainment", False))
 
     def met(self, idx: torch.Tensor) -> Met:
         sp = {k: v[idx] for k, v in self.spec.items()}
@@ -162,7 +175,7 @@ class GPUData:
     def targets(self, idx: torch.Tensor, s: torch.Tensor) -> torch.Tensor:
         """Scaled 11-channel target ``(B, 11, ny, nx)``."""
         B = len(idx)
-        bg = self.spec["c_bg"][idx, -1][:, None, None, None].expand(B, 1, *self.c_T.shape[-2:])
+        bg = last_hour_background(self.spec["c_bg"][idx])[:, None, None, None].expand(B, 1, *self.c_T.shape[-2:])
         y = torch.cat([self.S_cat[idx].float(), self.c_cat[idx].float(), bg,
                        self.c_T[idx, None].float(), self.c_Tm1[idx, None].float()], dim=1)
         return y / s[:, None, None, None]

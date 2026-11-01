@@ -56,11 +56,12 @@ def response_matrix(
     block: int = 4,
     device: str | torch.device = "cpu",
     substeps: int = 6,
+    entrainment: bool = False,
 ) -> Response:
     """Green's functions for one scenario (``len(specs) == 1``) under its own meteorology."""
     assert len(specs) == 1, "one scenario at a time"
     solver = ADRSolver(grid, "linear3")
-    fb = ForcingBuilder(specs, layouts, grid, device)
+    fb = ForcingBuilder(specs, layouts, grid, device, entrainment=entrainment)
     basis = block_basis(grid, block, device=device)
     J = basis.shape[0]
     per_cell = basis / basis.sum(dim=(1, 2), keepdim=True) * 1e6  # µg/s per cell for 1 g/s per block
@@ -73,7 +74,7 @@ def response_matrix(
         met = fb.forcing(h)
         S = per_cell / (grid.cell_area * float(specs.mixing_height[0, h]))
         f = Forcing(met.u.expand(J, -1, -1), met.v.expand(J, -1, -1), S, zero_bg)
-        _, snaps = solver.run(c, lambda t: f, fb.K, fb.lam, substeps, 3600.0 / substeps)
+        _, snaps = solver.run(c, lambda t: f, fb.K, fb.lam_eff(h), substeps, 3600.0 / substeps)
         if h >= T - window:
             mean = torch.trapezoid(snaps, dim=1) / substeps
             sensors.append(mean[:, iy, ix].T.cpu())  # (n, J)

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from airtrace.data.dataset import SyntheticDataset
-from airtrace.data.synthetic import ForcingBuilder, ScenarioSpecs
+from airtrace.data.synthetic import last_hour_background, ForcingBuilder, ScenarioSpecs
 from airtrace.eval.metrics import detect, hotspots, localization_km, rmse, window_source_strength
 from airtrace.grid import Grid
 from airtrace.models.greens import block_sum
@@ -41,7 +41,7 @@ def load_truth(ds: SyntheticDataset, i: int, grid: Grid, block: int, window: int
     strong = strength >= src_min_g_s
     return Truth(
         index=i, specs=specs, E_blocks=block_sum(emis, block) / 1e6, c_last=d["c_hourly"][-1].astype(np.float64),
-        bg_last=float(specs.c_bg[0, -1]), source_xy=specs.sources[0, strong, 1:3], cells=d["sensor_cells"],
+        bg_last=float(last_hour_background(specs.c_bg[0])), source_xy=specs.sources[0, strong, 1:3], cells=d["sensor_cells"],
         readings=d["sensor_readings"], noise=float(d["sensor_noise"]),
     )
 

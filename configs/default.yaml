@@ -16,10 +16,12 @@ physics:
   lam: 2.0e-5                  # first-order removal [1/s] (~14 h lifetime)
   K_range: [30.0, 150.0]
   lam_range: [1.0e-5, 5.0e-5]
-  wind_speed_range: [0.5, 6.0]
+  wind_speed_range: [0.3, 8.0]
   mixing_height_night: 250.0
   mixing_height_day: 1200.0
-  background_range: [15.0, 150.0]
+  background_range: [80.0, 300.0]  # regional base level at H = 500 m (scaled by (500/H)^alpha)
+  entrainment: true             # dilution of the local excess as the mixed layer deepens
+  mixing_height_floor: 150.0    # effective urban mixing depth floor on ERA5 BLH [m]; calibrated (night/day ratio)
 
 solver:
   limiter: koren               # koren (TVD, positive, default) | linear3 (exactly linear: Green's functions) | mc | vanleer | upwind1
@@ -28,7 +30,7 @@ solver:
   forcing_interval: 600.0      # forcing (wind, S, c_bg) held constant over this interval
 
 data:
-  name: synth_v1
+  name: synth_v2                # v2: ERA5 meteorology + entrainment, calibrated on Dec 2025 (synth_v1: configs/synth_v1.yaml)
   n_scenarios: 20000
   shard_size: 1000
   batch_size: 500              # scenarios simulated together on the GPU
@@ -36,7 +38,7 @@ data:
   window_hours: 6
   delhi_fraction: 0.7          # share of scenarios on real Delhi OSM geography
   n_random_layouts: 256        # synthetic cities for the remaining 30%
-  total_emission_kg_s: [1.0, 6.0]          # domain-total PM2.5, log-uniform (NCT + NCR industrial fringe)
+  total_emission_kg_s: [2.0, 8.0]          # domain-total PM2.5, log-uniform (NCT + NCR industrial fringe)
   max_source_g_s: [150.0, 60.0, 200.0]    # per-source cap: industry, construction, burning
   category_alpha: [2.0, 2.0, 1.5, 1.2]     # Dirichlet: traffic, industry, construction, burning
   n_industry: [3, 12]
@@ -46,12 +48,34 @@ data:
   hidden_night_prob: 0.5       # of off-prior industry: emits only 20:00-06:00
   nw_wind_prob: 0.5            # Delhi winter north-westerlies
   wind_pert_frac: [0.0, 0.3]   # divergence-free spatial perturbation / mean speed
+  met_source: era5             # winds and boundary-layer height from ERA5 smog seasons (Open-Meteo archive)
+  met_seasons:                 # Nov 2025 (test) and Dec 2025 (calibration) are excluded
+    - ["2019-10-15", "2019-12-31"]
+    - ["2020-10-15", "2020-12-31"]
+    - ["2021-10-15", "2021-12-31"]
+    - ["2022-10-15", "2022-12-31"]
+    - ["2023-10-15", "2023-12-31"]
+    - ["2024-10-15", "2024-12-31"]
+  speed_jitter: [0.8, 1.25]
+  direction_jitter_deg: 15.0
+  bg_blh_exponent: [0.0, 0.2]  # regional haze also accumulates under a shallow layer
   sensors:
     n_sensors: 40
     min_dist_m: 1500.0
-    noise_range: [0.10, 0.20]
+    noise_range: [0.10, 0.25]    # hourly log-error s.d. (AR(1), below)
+    bias_range: [0.10, 0.20]     # persistent per-monitor log offset s.d. (representativeness)
+    noise_rho: 0.7
     dropout_range: [0.0, 0.3]
     hourly_gap_prob: 0.05
+
+# Calibrated on December 2025 station statistics with scripts/phase6_calibrate.py
+# (real vs synthetic: network-median p10/p50/p90 110/200/325 vs 101/183/305 µg/m³, station spread 0.68 vs 0.70,
+#  night/day 1.26 vs 1.30, hourly change 0.05 vs 0.05). November 2025 is untouched for the Phase 6 test.
+
+fno:
+  noise_range: [0.05, 0.30]
+  bias_range: [0.05, 0.25]
+  noise_rho: 0.7
 
 paths:
   artifacts: artifacts

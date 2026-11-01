@@ -16,6 +16,7 @@ from airtrace.config import load_config
 from airtrace.data.dataset import write_shard
 from airtrace.data.geo import LocalProjection
 from airtrace.data.layouts import CATEGORIES, build_layouts
+from airtrace.data.openmeteo import met_bank
 from airtrace.data.sensors import sample_network
 from airtrace.data.synthetic import SCHEDULES, SRC_FIELDS, ForcingBuilder, sample_specs, simulate
 from airtrace.grid import Grid
@@ -45,6 +46,8 @@ def main() -> None:
         "S_units": "ug m^-3 h^-1", "c_units": "ug m^-3", "config": cfg.model_dump(mode="json"),
     }, indent=2), encoding="utf-8")
 
+    met = (met_bank(proj, dc.met_seasons, cfg.path("artifacts") / "cache" / "real", cfg.real.met_points)
+           if dc.met_source == "era5" else None)
     solver = ADRSolver.from_config(grid, cfg.solver)
     batches_per_shard = dc.shard_size // dc.batch_size
     n_batches = -(-n_total // dc.batch_size)
@@ -53,9 +56,10 @@ def main() -> None:
     for b in range(n_batches):
         rng = np.random.default_rng([cfg.seed, b])
         n = min(dc.batch_size, n_total - b * dc.batch_size)
-        specs = sample_specs(rng, n, layouts, grid, dc, cfg.physics)
+        specs = sample_specs(rng, n, layouts, grid, dc, cfg.physics, met)
         with torch.no_grad():
-            out = simulate(ForcingBuilder(specs, layouts, grid, device), solver, dc.window_hours)
+            fb = ForcingBuilder(specs, layouts, grid, device, entrainment=cfg.physics.entrainment)
+            out = simulate(fb, solver, dc.window_hours)
         out = {k: v.cpu().numpy() for k, v in out.items()}
         nets = [sample_network(rng, out["c_hourly"][i], grid, dc.sensors) for i in range(n)]
         arrays = {**out, **specs.as_dict(),

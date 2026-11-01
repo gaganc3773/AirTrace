@@ -59,6 +59,8 @@ def main() -> None:
     parser.add_argument("--tag", default="", help="suffix for output files (sweeps)")
     args = parser.parse_args()
     cfg = load_config(args.config)
+    if cfg.physics.entrainment:
+        parser.error("The PINN assumes synth_v1 physics (no entrainment) and its cached results: use --config configs/synth_v1.yaml")
     overrides = {k: float(v) for k, v in (kv.split("=") for kv in args.set)}
     if args.iters:
         overrides["iters"] = args.iters

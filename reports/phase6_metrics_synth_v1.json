@@ -1,0 +1,508 @@
+{
+  "n_stations": 51,
+  "n_windows": 229,
+  "n_predictions": 11023,
+  "met_clipped": {
+    "wind_speed": 0.09861111111111111,
+    "H": 0.675
+  },
+  "all": {
+    "FNO ensemble": {
+      "rmse": 84.82776602861625,
+      "mae": 59.67983784132014,
+      "bias": -12.978006974284037,
+      "r": 0.6584006995630717,
+      "rel_rmse": 0.399064963149024,
+      "n": 11023
+    },
+    "FNO + residual kriging": {
+      "rmse": 80.88184099495857,
+      "mae": 54.22750171530411,
+      "bias": 4.330722179681771,
+      "r": 0.6961207514681231,
+      "rel_rmse": 0.38050169664010514,
+      "n": 11023
+    },
+    "Kriging": {
+      "rmse": 75.7706784193014,
+      "mae": 49.94481265113375,
+      "bias": -0.7841395400073243,
+      "r": 0.7342510313312791,
+      "rel_rmse": 0.3564566698712142,
+      "n": 11023
+    },
+    "IDW": {
+      "rmse": 77.87344647879567,
+      "mae": 51.46894081060896,
+      "bias": -2.996859926063402,
+      "r": 0.7158511808912127,
+      "rel_rmse": 0.3663489621884485,
+      "n": 11023
+    },
+    "Network median": {
+      "rmse": 81.74472419534568,
+      "mae": 56.25217567812756,
+      "bias": -0.4125072575523902,
+      "r": 0.6805232171593153,
+      "rel_rmse": 0.38456105678461533,
+      "n": 11023
+    }
+  },
+  "night_20_08": {
+    "FNO ensemble": {
+      "rmse": 93.62846785380795,
+      "mae": 67.9862316033779,
+      "bias": -12.118303018875093,
+      "r": 0.5502319546831024,
+      "rel_rmse": 0.3898829986779037,
+      "n": 5538
+    },
+    "FNO + residual kriging": {
+      "rmse": 91.33808470356114,
+      "mae": 64.59995809208927,
+      "bias": 3.6975233766150657,
+      "r": 0.5893584424917399,
+      "rel_rmse": 0.38034549933385936,
+      "n": 5538
+    },
+    "Kriging": {
+      "rmse": 85.73836448945538,
+      "mae": 59.36940484633513,
+      "bias": -1.104038314738504,
+      "r": 0.6410645840647428,
+      "rel_rmse": 0.3570274235511632,
+      "n": 5538
+    },
+    "IDW": {
+      "rmse": 87.91146705618193,
+      "mae": 60.86987723821792,
+      "bias": -4.377389549877135,
+      "r": 0.6177334643486937,
+      "rel_rmse": 0.36607654893547376,
+      "n": 5538
+    },
+    "Network median": {
+      "rmse": 92.74238440301787,
+      "mae": 67.30116016612494,
+      "bias": -2.065921812928855,
+      "r": 0.5579323647306379,
+      "rel_rmse": 0.38619321414129976,
+      "n": 5538
+    }
+  },
+  "day_08_20": {
+    "FNO ensemble": {
+      "rmse": 74.90016089696296,
+      "mae": 51.29318175120602,
+      "bias": -13.846018005287638,
+      "r": 0.7212589767774268,
+      "rel_rmse": 0.405477034988835,
+      "n": 5485
+    },
+    "FNO + residual kriging": {
+      "rmse": 68.72916647393102,
+      "mae": 43.75481923314619,
+      "bias": 4.970039403270362,
+      "r": 0.7586522391748434,
+      "rel_rmse": 0.3720699435805028,
+      "n": 5485
+    },
+    "Kriging": {
+      "rmse": 64.15425581843532,
+      "mae": 40.42915329342633,
+      "bias": -0.46114967410736557,
+      "r": 0.7891939551379792,
+      "rel_rmse": 0.34730335849290733,
+      "n": 5485
+    },
+    "IDW": {
+      "rmse": 66.21209149698053,
+      "mae": 41.9771657994698,
+      "bias": -1.6029906358755355,
+      "r": 0.7725860497270793,
+      "rel_rmse": 0.35844358969452794,
+      "n": 5485
+    },
+    "Network median": {
+      "rmse": 68.88183892456135,
+      "mae": 45.09642798541477,
+      "bias": 1.256883773928897,
+      "r": 0.7519316754467879,
+      "rel_rmse": 0.3728964461122027,
+      "n": 5485
+    }
+  },
+  "coverage90": {
+    "raw": 0.2529257008074027,
+    "calibrated": 0.7239408509480177,
+    "kappa_field": 3.9282004833221436
+  },
+  "fno_beats_kriging_station_fraction": 0.21568627450980393,
+  "fno_rk_beats_kriging_station_fraction": 0.29411764705882354,
+  "per_station_rmse": {
+    "R K Puram, Delhi - DPCC": {
+      "FNO ensemble": 78.02457515837946,
+      "FNO + residual kriging": 67.67117651560373,
+      "Kriging": 74.1981690629867,
+      "IDW": 69.32833214677368,
+      "Network median": 62.784232549488046
+    },
+    "Punjabi Bagh, Delhi - DPCC": {
+      "FNO ensemble": 78.97371063862244,
+      "FNO + residual kriging": 53.8406135610405,
+      "Kriging": 44.85071740816206,
+      "IDW": 51.069731325756855,
+      "Network median": 53.16677048903981
+    },
+    "Anand Vihar, New Delhi - DPCC": {
+      "FNO ensemble": 86.9934564859728,
+      "FNO + residual kriging": 51.12992581972011,
+      "Kriging": 67.02757057758703,
+      "IDW": 67.47334430581198,
+      "Network median": 77.09855520443864
+    },
+    "Vikas Sadan, Gurugram - HSPCB": {
+      "FNO ensemble": 96.79754495143962,
+      "FNO + residual kriging": 106.9663723349767,
+      "Kriging": 84.3470097470971,
+      "IDW": 88.39828886203229,
+      "Network median": 117.9272074471426
+    },
+    "Burari Crossing, New Delhi - IMD": {
+      "FNO ensemble": 72.30425700556621,
+      "FNO + residual kriging": 56.88903529087523,
+      "Kriging": 53.25180534397158,
+      "IDW": 49.31954234687768,
+      "Network median": 64.9646547653282
+    },
+    "Aya Nagar, New Delhi - IMD": {
+      "FNO ensemble": 40.28556991510859,
+      "FNO + residual kriging": 44.568260454520235,
+      "Kriging": 41.745164785118604,
+      "IDW": 36.24242378136991,
+      "Network median": 59.40823926606531
+    },
+    "Sirifort, Delhi - CPCB": {
+      "FNO ensemble": 56.42724660233122,
+      "FNO + residual kriging": 40.31846033850811,
+      "Kriging": 42.09591089699335,
+      "IDW": 40.44090228228912,
+      "Network median": 42.05101337576841
+    },
+    "Sector - 125, Noida, UP - UPPCB": {
+      "FNO ensemble": 82.58258859485197,
+      "FNO + residual kriging": 73.13828129144584,
+      "Kriging": 73.94661081726589,
+      "IDW": 76.79322473374579,
+      "Network median": 80.05141671564482
+    },
+    "North Campus, DU, Delhi - IMD": {
+      "FNO ensemble": 78.04787367601035,
+      "FNO + residual kriging": 81.53332307531079,
+      "Kriging": 63.02729439878208,
+      "IDW": 82.82218228770931,
+      "Network median": 51.71617698275571
+    },
+    "ITO, New Delhi - CPCB": {
+      "FNO ensemble": 75.96930223198052,
+      "FNO + residual kriging": 57.880397778436375,
+      "Kriging": 61.49876101340859,
+      "IDW": 63.69091360442328,
+      "Network median": 60.00086817553711
+    },
+    "Sector - 62, Noida, UP - IMD": {
+      "FNO ensemble": 61.062419795123404,
+      "FNO + residual kriging": 63.75213426153413,
+      "Kriging": 64.59726533999408,
+      "IDW": 60.47948309918014,
+      "Network median": 61.12789876430769
+    },
+    "NSIT Dwarka, Delhi - CPCB": {
+      "FNO ensemble": 100.8319193595838,
+      "FNO + residual kriging": 127.67840802710184,
+      "Kriging": 115.49520932008605,
+      "IDW": 122.21202601153337,
+      "Network median": 128.3178169468983
+    },
+    "DTU, New Delhi - CPCB": {
+      "FNO ensemble": 101.02179724253891,
+      "FNO + residual kriging": 119.77126052006982,
+      "Kriging": 125.09894164415215,
+      "IDW": 120.03038018554366,
+      "Network median": 107.33411735729128
+    },
+    "CRRI Mathura Road, New Delhi - IMD": {
+      "FNO ensemble": 49.75339109363952,
+      "FNO + residual kriging": 54.71426562614648,
+      "Kriging": 42.29291005166701,
+      "IDW": 38.97281100392658,
+      "Network median": 41.617926447647555
+    },
+    "Shadipur, Delhi - CPCB": {
+      "FNO ensemble": 95.43573095452578,
+      "FNO + residual kriging": 127.23224767357507,
+      "Kriging": 128.01423923612762,
+      "IDW": 128.12998852516665,
+      "Network median": 118.20195426113075
+    },
+    "Lodhi Road, New Delhi - IMD": {
+      "FNO ensemble": 44.14978661551466,
+      "FNO + residual kriging": 38.09770733807877,
+      "Kriging": 31.11605744509823,
+      "IDW": 40.94085718779572,
+      "Network median": 54.14148805829654
+    },
+    "IGI Airport (T3), Delhi - IMD": {
+      "FNO ensemble": 50.247390720344924,
+      "FNO + residual kriging": 66.50869614199219,
+      "Kriging": 49.40437645682833,
+      "IDW": 59.28482731109906,
+      "Network median": 73.2867141180188
+    },
+    "Vasundhara, Ghaziabad - UPPCB": {
+      "FNO ensemble": 86.6474017053294,
+      "FNO + residual kriging": 80.0961060725047,
+      "Kriging": 81.49074744845119,
+      "IDW": 85.18608536535434,
+      "Network median": 81.9846226500057
+    },
+    "Pusa, Delhi - DPCC": {
+      "FNO ensemble": 67.82835690383861,
+      "FNO + residual kriging": 75.50378626531747,
+      "Kriging": 63.0499185765335,
+      "IDW": 69.19587995331392,
+      "Network median": 54.93431951296405
+    },
+    "Mandir Marg, New Delhi - DPCC": {
+      "FNO ensemble": 64.28708347699047,
+      "FNO + residual kriging": 56.06805464112937,
+      "Kriging": 52.524849787842214,
+      "IDW": 54.01056428971226,
+      "Network median": 59.029057110319265
+    },
+    "IHBAS, Dilshad Garden,New Delhi - CPCB": {
+      "FNO ensemble": 133.9189174493984,
+      "FNO + residual kriging": 195.27376287612137,
+      "Kriging": 186.7999184781097,
+      "IDW": 183.1422505152957,
+      "Network median": 143.9476862834677
+    },
+    "Indirapuram, Ghaziabad - UPPCB": {
+      "FNO ensemble": 73.47228471884708,
+      "FNO + residual kriging": 82.23652244466366,
+      "Kriging": 76.58951213424875,
+      "IDW": 77.68342095816169,
+      "Network median": 78.89827459450649
+    },
+    "Major Dhyan Chand National Stadium, Delhi - DPCC": {
+      "FNO ensemble": 42.17778827347696,
+      "FNO + residual kriging": 46.21783490879706,
+      "Kriging": 38.437007930063274,
+      "IDW": 37.69530566323111,
+      "Network median": 46.521282610035804
+    },
+    "Dwarka-Sector 8, Delhi - DPCC": {
+      "FNO ensemble": 61.96617372713165,
+      "FNO + residual kriging": 56.60396225542496,
+      "Kriging": 67.59413320496564,
+      "IDW": 52.494136506427004,
+      "Network median": 51.644406506913484
+    },
+    "Alipur, Delhi - DPCC": {
+      "FNO ensemble": 84.61157986366405,
+      "FNO + residual kriging": 53.874606719197594,
+      "Kriging": 47.34307302206233,
+      "IDW": 42.51488901360001,
+      "Network median": 62.5983110906506
+    },
+    "Dr. Karni Singh Shooting Range, Delhi - DPCC": {
+      "FNO ensemble": 50.544503841354356,
+      "FNO + residual kriging": 36.707670741046385,
+      "Kriging": 32.15935796223507,
+      "IDW": 29.306206389793925,
+      "Network median": 32.48679946898419
+    },
+    "Arya Nagar, Bahadurgarh - HSPCB": {
+      "FNO ensemble": 141.74588011618138,
+      "FNO + residual kriging": 144.03172599951964,
+      "Kriging": 140.77206985504571,
+      "IDW": 141.62795325271856,
+      "Network median": 143.00650395365545
+    },
+    "Vivek Vihar, Delhi - DPCC": {
+      "FNO ensemble": 122.87240209693933,
+      "FNO + residual kriging": 130.2890473114462,
+      "Kriging": 112.20702935938674,
+      "IDW": 131.92354226728665,
+      "Network median": 93.98746219218474
+    },
+    "Jawaharlal Nehru Stadium, Delhi - DPCC": {
+      "FNO ensemble": 46.77466917055455,
+      "FNO + residual kriging": 35.065585110563525,
+      "Kriging": 33.37312803505795,
+      "IDW": 41.764710042726776,
+      "Network median": 28.724851128742532
+    },
+    "Patparganj, Delhi - DPCC": {
+      "FNO ensemble": 52.81194680208551,
+      "FNO + residual kriging": 38.00172995977683,
+      "Kriging": 32.10730324862117,
+      "IDW": 35.63403996939325,
+      "Network median": 38.89079982606569
+    },
+    "Sector-1, Noida - UPPCB": {
+      "FNO ensemble": 53.41188041574964,
+      "FNO + residual kriging": 58.292749437642506,
+      "Kriging": 39.63234692234314,
+      "IDW": 36.59431005631495,
+      "Network median": 41.48340702183868
+    },
+    "Sector-116, Noida - UPPCB": {
+      "FNO ensemble": 81.50766622152805,
+      "FNO + residual kriging": 70.38111303704144,
+      "Kriging": 64.5365770413251,
+      "IDW": 62.8786598925065,
+      "Network median": 71.20330982510055
+    },
+    "Loni, Ghaziabad - UPPCB": {
+      "FNO ensemble": 152.2512494479792,
+      "FNO + residual kriging": 129.5314576803096,
+      "Kriging": 122.20000307157196,
+      "IDW": 122.71830301814892,
+      "Network median": 133.4640631584469
+    },
+    "New Delhi": {
+      "FNO ensemble": 44.47946860895224,
+      "FNO + residual kriging": 43.89307178783829,
+      "Kriging": 41.442287647649536,
+      "IDW": 40.08863918700782,
+      "Network median": 39.68990047205794
+    },
+    "Jahangirpuri, Delhi - DPCC": {
+      "FNO ensemble": 96.17702631847071,
+      "FNO + residual kriging": 51.94706775601131,
+      "Kriging": 53.4905978156325,
+      "IDW": 60.713789922682814,
+      "Network median": 95.83494606021145
+    },
+    "Okhla Phase-2, Delhi - DPCC": {
+      "FNO ensemble": 42.0034495897386,
+      "FNO + residual kriging": 26.475003094296614,
+      "Kriging": 22.219563665471764,
+      "IDW": 22.612241217823897,
+      "Network median": 28.242687056052556
+    },
+    "Nehru Nagar, Delhi - DPCC": {
+      "FNO ensemble": 80.1083118872767,
+      "FNO + residual kriging": 58.002098075240895,
+      "Kriging": 65.3092569965222,
+      "IDW": 69.88367286047047,
+      "Network median": 64.49472761668878
+    },
+    "Bawana, Delhi - DPCC": {
+      "FNO ensemble": 135.7210906478201,
+      "FNO + residual kriging": 107.58262401384111,
+      "Kriging": 98.47196390942376,
+      "IDW": 95.02421802359487,
+      "Network median": 114.87403150423114
+    },
+    "Sonia Vihar, Delhi - DPCC": {
+      "FNO ensemble": 81.38120688312527,
+      "FNO + residual kriging": 59.264770146019956,
+      "Kriging": 53.745415281044124,
+      "IDW": 55.370072356083085,
+      "Network median": 61.89635426965792
+    },
+    "Wazirpur, Delhi - DPCC": {
+      "FNO ensemble": 109.1625051763057,
+      "FNO + residual kriging": 54.71421413777929,
+      "Kriging": 56.57132389458912,
+      "IDW": 63.73828975351059,
+      "Network median": 100.05252723583762
+    },
+    "Ashok Vihar, Delhi - DPCC": {
+      "FNO ensemble": 69.07886325318418,
+      "FNO + residual kriging": 34.26752930756198,
+      "Kriging": 30.820435964694543,
+      "IDW": 31.35424718034918,
+      "Network median": 68.25557437552872
+    },
+    "Sri Aurobindo Marg, Delhi - DPCC": {
+      "FNO ensemble": 56.518101280605194,
+      "FNO + residual kriging": 67.31605428412537,
+      "Kriging": 49.49284191696238,
+      "IDW": 50.43065287844643,
+      "Network median": 53.41561299894977
+    },
+    "Narela, Delhi - DPCC": {
+      "FNO ensemble": 119.16248777754089,
+      "FNO + residual kriging": 81.8406064638994,
+      "Kriging": 57.57668736618061,
+      "IDW": 62.662808206454926,
+      "Network median": 90.39853985973407
+    },
+    "Mundka, Delhi - DPCC": {
+      "FNO ensemble": 100.74450902088063,
+      "FNO + residual kriging": 82.02484469474707,
+      "Kriging": 82.99271033148324,
+      "IDW": 82.72255562239252,
+      "Network median": 89.79616500719838
+    },
+    "Najafgarh, Delhi - DPCC": {
+      "FNO ensemble": 51.64741697505719,
+      "FNO + residual kriging": 56.44524868021631,
+      "Kriging": 53.21183315274783,
+      "IDW": 49.62293480902142,
+      "Network median": 65.33413680319181
+    },
+    "Sector-51, Gurugram - HSPCB": {
+      "FNO ensemble": 96.65879616045397,
+      "FNO + residual kriging": 96.55759490911741,
+      "Kriging": 82.25697031858208,
+      "IDW": 91.9720783068538,
+      "Network median": 118.93265375426657
+    },
+    "Rohini, Delhi - DPCC": {
+      "FNO ensemble": 112.47192187880611,
+      "FNO + residual kriging": 87.61964853584453,
+      "Kriging": 77.18125075151113,
+      "IDW": 89.07509628703914,
+      "Network median": 98.67118068073283
+    },
+    "Teri Gram, Gurugram - HSPCB": {
+      "FNO ensemble": 104.08355040362993,
+      "FNO + residual kriging": 114.97486824363617,
+      "Kriging": 102.99872869768569,
+      "IDW": 115.4098916759281,
+      "Network median": 138.93851495355779
+    },
+    "NISE Gwal Pahari, Gurugram - IMD": {
+      "FNO ensemble": 83.57360040810944,
+      "FNO + residual kriging": 93.28712548276435,
+      "Kriging": 86.58160778511166,
+      "IDW": 98.38288679350151,
+      "Network median": 91.13684774249303
+    },
+    "Chandni Chowk, Delhi - IITM": {
+      "FNO ensemble": 74.64359180182731,
+      "FNO + residual kriging": 68.33452076650201,
+      "Kriging": 67.39134648415576,
+      "IDW": 67.97138966595539,
+      "Network median": 69.42562027090575
+    },
+    "Lodhi Road, Delhi - IITM": {
+      "FNO ensemble": 84.6263333483102,
+      "FNO + residual kriging": 83.84989212812413,
+      "Kriging": 88.1907683798929,
+      "IDW": 79.37091718109544,
+      "Network median": 104.14474583571264
+    }
+  },
+  "mean_shares": {
+    "traffic": 0.1065342128276825,
+    "industry": 0.05330857262015343,
+    "construction": 0.01489899680018425,
+    "burning": 0.02487148717045784,
+    "regional": 0.8003867864608765
+  }
+}

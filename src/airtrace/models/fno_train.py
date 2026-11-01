@@ -11,6 +11,7 @@ from torch import nn
 
 from airtrace.config import FNOConfig
 from airtrace.data.dataset import SyntheticDataset
+from airtrace.data.synthetic import last_hour_background
 from airtrace.grid import Grid
 from airtrace.models.fno import FNO2d
 from airtrace.models.fno_data import (BG, C_SLICE, CT, CTM1, N_IN, N_OUT, S_SLICE, GPUData, build_inputs,
@@ -43,8 +44,12 @@ def physics_residual(pred: torch.Tensor, data: GPUData, idx: torch.Tensor, s: to
     vf = torch.cat([vc[..., :1, :], 0.5 * (vc[..., 1:, :] + vc[..., :-1, :]), vc[..., -1:, :]], dim=-2)
     bg = data.spec["c_bg"][idx]
     K, lam = data.K[idx], data.lam[idx]
-    regional = (lam * bg[:, -1] + (bg[:, -1] - bg[:, -2]) / 3600.0) / s
-    f = Forcing(uf, vf, torch.zeros_like(uc), bg[:, -1] / s)
+    if data.entrainment:
+        H = data.spec["mixing_height"][idx]
+        lam = lam + (torch.log(H[:, -1] / H[:, -2]).clamp(min=0) / 3600.0)
+    bg_mean = last_hour_background(bg)
+    regional = (lam * bg_mean + (bg[:, -1] - bg[:, -2]) / 3600.0) / s
+    f = Forcing(uf, vf, torch.zeros_like(uc), bg_mean / s)
     solver = ADRSolver(grid, "linear3")
     L = solver.tendency(pred[:, CTM1], f, K, lam) + solver.tendency(pred[:, CT], f, K, lam)
     return (pred[:, CT] - pred[:, CTM1]) - 1800.0 * L - pred[:, S_SLICE].sum(1) - 3600.0 * regional[:, None, None]
@@ -105,7 +110,7 @@ def train_member(data: GPUData, cfg: FNOConfig, grid: Grid, seed: int, val: tupl
         for b in range(nb):
             idx = perm[b * cfg.batch_size:(b + 1) * cfg.batch_size]
             values, mask = sample_networks(data.c_hourly[idx].float(), cfg.n_sensors, cfg.noise_range,
-                                           cfg.dropout_range, cfg.gap_prob, gen)
+                                           cfg.dropout_range, cfg.gap_prob, gen, cfg.bias_range, cfg.noise_rho)
             x, s = build_inputs(values, mask, data.met(idx))
             pred = activate(model(x))
             phys = physics_residual(pred, data, idx, s, grid) if cfg.w_phys > 0 else None

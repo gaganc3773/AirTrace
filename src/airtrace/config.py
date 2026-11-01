@@ -33,6 +33,8 @@ class PhysicsConfig(BaseModel):
     mixing_height_night: float = 250.0
     mixing_height_day: float = 1200.0
     background_range: tuple[float, float] = (15.0, 150.0)
+    entrainment: bool = False  # dilute the local excess as the mixed layer deepens (rate d ln H / dt when > 0)
+    mixing_height_floor: float = 30.0  # [m] effective mixing depth floor applied to reanalysis BLH
 
 
 class SolverConfig(BaseModel):
@@ -50,6 +52,8 @@ class SensorConfig(BaseModel):
     n_sensors: int = 40
     min_dist_m: float = 1500.0
     noise_range: tuple[float, float] = (0.10, 0.20)  # multiplicative lognormal sigma
+    bias_range: tuple[float, float] = (0.0, 0.0)  # persistent per-sensor log offset sigma (representativeness)
+    noise_rho: float = 0.0  # hour-to-hour autocorrelation of the log error
     dropout_range: tuple[float, float] = (0.0, 0.3)  # fraction of sensors offline for the window
     hourly_gap_prob: float = 0.05
 
@@ -75,6 +79,11 @@ class DataConfig(BaseModel):
     hidden_night_prob: float = 0.5
     nw_wind_prob: float = 0.5
     wind_pert_frac: tuple[float, float] = (0.0, 0.3)
+    met_source: Literal["synthetic", "era5"] = "synthetic"  # idealised diurnal met, or segments of ERA5 records
+    met_seasons: list[tuple[str, str]] = []  # ERA5 periods (UTC dates, inclusive) sampled when met_source = era5
+    speed_jitter: tuple[float, float] = (0.8, 1.25)  # era5: multiplicative wind-speed augmentation
+    direction_jitter_deg: float = 15.0  # era5: s.d. of a constant wind rotation
+    bg_blh_exponent: tuple[float, float] = (0.0, 0.0)  # era5: c_bg ∝ (500 m / H)^alpha, alpha ~ U(range)
     sensors: SensorConfig = SensorConfig()
 
 
@@ -122,6 +131,8 @@ class FNOConfig(BaseModel):
     w_phys: float = 0.02  # truth itself has residual RMS ~0.5 under the hour-trapezoid rule; 0.1 blurred outputs
     n_sensors: tuple[int, int] = (5, 40)
     noise_range: tuple[float, float] = (0.05, 0.25)
+    bias_range: tuple[float, float] = (0.0, 0.0)
+    noise_rho: float = 0.0
     dropout_range: tuple[float, float] = (0.0, 0.3)
     gap_prob: float = 0.05
     members: int = 5

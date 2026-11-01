@@ -31,7 +31,6 @@ from airtrace.models.fno_data import BG, C_SLICE
 from airtrace.models.fno_train import load_members, predict
 
 METHODS = ("FNO ensemble", "FNO + residual kriging", "Kriging", "IDW", "Network median")
-H_TRAIN = (175.0, 1560.0)  # mixing heights spanned by the synthetic training scenarios [m]
 
 
 def metrics(pred: np.ndarray, obs: np.ndarray) -> dict:
@@ -56,7 +55,10 @@ def main() -> None:
     models = load_members(sorted((cfg.path("artifacts") / "fno").glob("member_*.pt")), dev)
     cal = json.loads((cfg.path("artifacts") / "fno" / "calibration.json").read_text())
     W, S = cfg.data.window_hours, len(data.names)
-    win = RealWindows(data, W, priors, cfg.physics.wind_speed_range, H_TRAIN, dev)
+    # training scenarios span mixing heights from the floor upwards (synth_v1: 175-1560 m)
+    H_range = ((cfg.physics.mixing_height_floor, np.inf) if cfg.data.met_source == "era5"
+               else (0.7 * cfg.physics.mixing_height_night, 1.3 * cfg.physics.mixing_height_day))
+    win = RealWindows(data, W, priors, cfg.physics.wind_speed_range, H_range, dev)
     print(f"{S} stations, {len(data.times)} h; met clipped to training range: {win.clipped_fraction}")
 
     xs, ys = proj.to_xy(data.lonlat[:, 0], data.lonlat[:, 1])
@@ -130,6 +132,7 @@ def main() -> None:
                "coverage90": {"raw": cov_raw, "calibrated": cov_cal, "kappa_field": cal["kappa_field"]},
                "fno_beats_kriging_station_fraction": wins,
                "fno_rk_beats_kriging_station_fraction": wins_rk, "per_station_rmse": per_station, "mean_shares": share_mean}
+    summary["dataset"] = cfg.data.name
     report = cfg.path("artifacts").parent / "reports"
     (report / "phase6_metrics.json").write_text(json.dumps(summary, indent=2))
     write_markdown(summary, report, cfg)

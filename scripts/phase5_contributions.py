@@ -35,6 +35,7 @@ def main() -> None:
     grid = Grid.from_config(cfg.domain)
     ds = SyntheticDataset(cfg.path("artifacts") / "datasets" / cfg.data.name)
     solver = ADRSolver(grid, "linear3")
+    entrain = ds.meta["config"]["physics"].get("entrainment", False)
     n_cat, sub = 4, 6
     t0, done = time.perf_counter(), 0
     for shard_idx, shard in enumerate(ds.shards):
@@ -48,15 +49,15 @@ def main() -> None:
             specs = ds.specs(idx)
             B, T = len(idx), specs.wind_u.shape[1]
             with torch.no_grad():
-                fb = ForcingBuilder(specs, ds.layouts, grid, dev)
-                K, lam = fb.K.repeat_interleave(n_cat), fb.lam.repeat_interleave(n_cat)
+                fb = ForcingBuilder(specs, ds.layouts, grid, dev, entrainment=entrain)
+                K = fb.K.repeat_interleave(n_cat)
                 c = torch.zeros(B * n_cat, grid.ny, grid.nx, device=dev)
                 zero = torch.zeros(B * n_cat, device=dev)
                 for h in range(T):
                     met = fb.forcing(h)
                     S = fb.source_by_category(h).reshape(B * n_cat, grid.ny, grid.nx)
                     f = Forcing(met.u.repeat_interleave(n_cat, 0), met.v.repeat_interleave(n_cat, 0), S, zero)
-                    _, snaps = solver.run(c, lambda t: f, K, lam, sub, 3600.0 / sub)
+                    _, snaps = solver.run(c, lambda t: f, K, fb.lam_eff(h).repeat_interleave(n_cat), sub, 3600.0 / sub)
                     if h == T - 1:
                         last = torch.trapezoid(snaps, dim=1) / sub
                     c = snaps[:, -1]

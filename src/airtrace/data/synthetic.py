@@ -123,26 +123,58 @@ def _place(rng: np.random.Generator, grid: Grid, prior: np.ndarray, off_prior: b
     return (ix + rng.random()) * grid.dx, (iy + rng.random()) * grid.dy, off_prior
 
 
+def _era5_met(rng: np.random.Generator, met, starts: np.ndarray, T: int, data: DataConfig, phys: PhysicsConfig
+              ) -> tuple[int, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """A random ``T``-hour segment of reanalysis: end hour, wind (u, v), mixing height and background.
+
+    Simulated hour ``h`` uses the mean of the two hourly instants that bound it; the
+    whole segment is rotated and its speed rescaled for augmentation. Local time is
+    IST (UTC+5:30) truncated to the hour.
+    """
+    s = int(rng.choice(starts))
+    mid = lambda a: 0.5 * (a[s:s + T] + a[s + 1:s + T + 1])  # noqa: E731
+    u, v, H = mid(met.u), mid(met.v), mid(met.H)
+    rot = np.radians(rng.normal(0.0, data.direction_jitter_deg))
+    k = rng.uniform(*data.speed_jitter)
+    u, v = k * (u * np.cos(rot) + v * np.sin(rot)), k * (-u * np.sin(rot) + v * np.cos(rot))
+    speed = np.hypot(u, v)
+    scale = np.clip(speed, *phys.wind_speed_range) / np.maximum(speed, 1e-9)
+    H = np.maximum(H * rng.uniform(0.7, 1.3), phys.mixing_height_floor)
+    utc_end = int((met.times[s + T] - met.times[s + T].astype("datetime64[D]")).astype(int))
+    end_hour = (utc_end + 5) % 24
+    alpha = rng.uniform(*data.bg_blh_exponent)
+    c_bg = _loguniform(rng, *phys.background_range) * (500.0 / H) ** alpha
+    return end_hour, u * scale, v * scale, H, c_bg
+
+
 def sample_specs(
-    rng: np.random.Generator, n: int, layouts: np.ndarray, grid: Grid, data: DataConfig, phys: PhysicsConfig
+    rng: np.random.Generator, n: int, layouts: np.ndarray, grid: Grid, data: DataConfig, phys: PhysicsConfig,
+    met=None,
 ) -> ScenarioSpecs:
-    """Draw ``n`` random scenarios; layout 0 (Delhi) is chosen with ``data.delhi_fraction``."""
+    """Draw ``n`` random scenarios; layout 0 (Delhi) is chosen with ``data.delhi_fraction``.
+
+    ``met``: a :class:`~airtrace.data.openmeteo.MetBank`, required when ``data.met_source == "era5"``.
+    """
     T = data.sim_hours
     out: dict[str, list] = {f.name: [] for f in fields(ScenarioSpecs)}
+    starts = met.starts(T) if data.met_source == "era5" else None
     for _ in range(n):
         layout_id = 0 if rng.random() < data.delhi_fraction else int(rng.integers(1, len(layouts)))
         prior = layouts[layout_id]
-        end_hour = int(rng.integers(0, 24))
-        lh = (end_hour - T + np.arange(T)) % 24 + 0.5
-
-        theta0 = rng.uniform(280, 340) if rng.random() < data.nw_wind_prob else rng.uniform(0, 360)
-        theta = np.radians(theta0 + np.cumsum(rng.normal(0, 10, T)))
-        s0 = _loguniform(rng, 0.6, 4.5)
-        speed = np.clip(s0 * (0.7 + 0.6 * _daylight(lh)) * np.exp(rng.normal(0, 0.15, T)), *phys.wind_speed_range)
-
-        c_bg = _loguniform(rng, *phys.background_range) * (1 + 0.25 * np.cos(2 * np.pi * (lh - 4) / 24))
-        H = (phys.mixing_height_night + (phys.mixing_height_day - phys.mixing_height_night) * _daylight(lh))
-        H = H * rng.uniform(0.7, 1.3)
+        if data.met_source == "era5":
+            end_hour, wind_u, wind_v, H, c_bg = _era5_met(rng, met, starts, T, data, phys)
+            speed = np.hypot(wind_u, wind_v)
+        else:
+            end_hour = int(rng.integers(0, 24))
+            lh = (end_hour - T + np.arange(T)) % 24 + 0.5
+            theta0 = rng.uniform(280, 340) if rng.random() < data.nw_wind_prob else rng.uniform(0, 360)
+            theta = np.radians(theta0 + np.cumsum(rng.normal(0, 10, T)))
+            s0 = _loguniform(rng, 0.6, 4.5)
+            speed = np.clip(s0 * (0.7 + 0.6 * _daylight(lh)) * np.exp(rng.normal(0, 0.15, T)), *phys.wind_speed_range)
+            wind_u, wind_v = -speed * np.sin(theta), -speed * np.cos(theta)
+            c_bg = _loguniform(rng, *phys.background_range) * (1 + 0.25 * np.cos(2 * np.pi * (lh - 4) / 24))
+            H = (phys.mixing_height_night + (phys.mixing_height_day - phys.mixing_height_night) * _daylight(lh))
+            H = H * rng.uniform(0.7, 1.3)
 
         # Emission inventory: domain total split across categories, then across sources.
         Q = _loguniform(rng, *data.total_emission_kg_s) * 1e9  # µg/s
@@ -175,7 +207,7 @@ def sample_specs(
 
         for key, val in dict(
             layout_id=layout_id, end_hour=end_hour, K=_loguniform(rng, *phys.K_range),
-            lam=_loguniform(rng, *phys.lam_range), wind_u=-speed * np.sin(theta), wind_v=-speed * np.cos(theta),
+            lam=_loguniform(rng, *phys.lam_range), wind_u=wind_u, wind_v=wind_v,
             pert_amp=rng.uniform(*data.wind_pert_frac) * speed, pert_coef=_mode_coefs(rng), c_bg=c_bg,
             mixing_height=H, traffic_emission=Q * shares[0], traffic_coef=_mode_coefs(rng), sources=table,
         ).items():
@@ -183,16 +215,40 @@ def sample_specs(
     return ScenarioSpecs(**{k: np.asarray(v) for k, v in out.items()})
 
 
+def last_hour_background(c_bg):
+    """Mean regional background over the last simulated hour from hourly start values ``(..., T)``.
+
+    ``c_bg[..., h]`` is the value at the start of hour ``h``; within the last hour it keeps
+    the previous hour's trend, so its mean is ``c_bg[-1] + (c_bg[-1] - c_bg[-2]) / 2``
+    (works on NumPy arrays and tensors).
+    """
+    return 1.5 * c_bg[..., -1] - 0.5 * c_bg[..., -2]
+
+
+def entrainment_rate(H: np.ndarray) -> np.ndarray:
+    """Dilution rate [1/s] of the local excess by a deepening mixed layer, ``(B, T)``.
+
+    Growing from ``H_h`` to ``H_{h+1}`` mixes the column with background air above,
+    so the excess falls by ``H_h / H_{h+1}``: a rate ``max(ln(H_{h+1}/H_h), 0) / 3600``
+    over the hour. A shrinking layer leaves a residual layer aloft (no effect at the
+    surface). The last hour reuses the previous step.
+    """
+    g = np.log(np.maximum(H[:, 1:], 1e-3) / np.maximum(H[:, :-1], 1e-3))
+    g = np.concatenate([g, g[:, -1:]], axis=1)
+    return np.maximum(g, 0.0) / 3600.0
+
+
 class ForcingBuilder:
     """Turns :class:`ScenarioSpecs` into hourly :class:`Forcing` on a device."""
 
     def __init__(self, specs: ScenarioSpecs, layouts: np.ndarray, grid: Grid,
-                 device: torch.device | str = "cpu", dtype: torch.dtype = torch.float32):
+                 device: torch.device | str = "cpu", dtype: torch.dtype = torch.float32, entrainment: bool = False):
         self.specs, self.grid, self.device, self.dtype = specs, grid, device, dtype
         t = lambda a: torch.as_tensor(np.asarray(a), dtype=dtype, device=device)  # noqa: E731
         self._t = t
         self.local_hours = specs.local_hours()
         self.K, self.lam = t(specs.K), t(specs.lam)
+        self.entrainment = t(entrainment_rate(specs.mixing_height) if entrainment else np.zeros_like(specs.mixing_height))
 
         # Unit-max divergence-free perturbation pattern.
         psi = self._pattern(specs.pert_coef, corners=True)
@@ -245,27 +301,42 @@ class ForcingBuilder:
         H = self._t(self.specs.mixing_height[:, h])
         return self.emission_by_category(h) / (self.grid.cell_area * H[:, None, None, None])
 
-    def regional_source(self, h: int) -> torch.Tensor:
-        """Uniform regional term ``lam c_bg + dc_bg/dt`` [µg m^-3 s^-1], shape ``(B,)``."""
+    def lam_eff(self, h: int) -> torch.Tensor:
+        """Removal rate of the local excess during hour ``h``: deposition plus entrainment, ``(B,)`` [1/s]."""
+        return self.lam + self.entrainment[:, h]
+
+    def _bg_slope(self, h: int) -> np.ndarray:
+        """Background change over hour ``h`` [µg/m³ per hour] (the last hour reuses the previous one)."""
         bg = self.specs.c_bg
         h0, h1 = (h, h + 1) if h + 1 < bg.shape[1] else (h - 1, h)
-        return self.lam * self._t(bg[:, h]) + self._t((bg[:, h1] - bg[:, h0]) / 3600.0)
+        return bg[:, h1] - bg[:, h0]
 
-    def forcing(self, h: int) -> Forcing:
-        """Solver forcing for simulated hour ``h``.
+    def background(self, h: int, frac: float = 0.0) -> torch.Tensor:
+        """Regional background at fraction ``frac`` of hour ``h`` (linear within the hour), ``(B,)``."""
+        return self._t(self.specs.c_bg[:, h] + frac * self._bg_slope(h))
+
+    def regional_source(self, h: int, frac: float = 0.0) -> torch.Tensor:
+        """Uniform regional term ``lam_eff c_bg + dc_bg/dt`` [µg m^-3 s^-1], shape ``(B,)``."""
+        return self.lam_eff(h) * self.background(h, frac) + self._t(self._bg_slope(h) / 3600.0)
+
+    def forcing(self, h: int, frac: float = 0.0, S_local: torch.Tensor | None = None) -> Forcing:
+        """Solver forcing at fraction ``frac`` of simulated hour ``h``.
 
         Besides local sources, S includes a uniform regional term
-        ``lam * c_bg + d(c_bg)/dt`` so that a spatially uniform background
+        ``lam_eff * c_bg + d(c_bg)/dt`` so that a spatially uniform background
         ``c_bg(t)`` is an exact solution: removal acts on the local excess, and
         the regional haze neither decays away in calm air nor lags the inflow.
+        With entrainment ``lam_eff`` is large (~1/h as the layer grows), so the
+        background must be evaluated where it is used (``frac`` = interval midpoint),
+        not held at its start-of-hour value. ``S_local``: cached local sources.
         """
         s = self.specs
         amp = self._t(s.pert_amp[:, h])[:, None, None]
         u = self._t(s.wind_u[:, h])[:, None, None] + amp * self.up
         v = self._t(s.wind_v[:, h])[:, None, None] + amp * self.vp
-        c_bg = self._t(s.c_bg[:, h])
-        S = self.source_by_category(h).sum(dim=1) + self.regional_source(h)[:, None, None]
-        return Forcing(u, v, S, c_bg)
+        S_local = self.source_by_category(h).sum(dim=1) if S_local is None else S_local
+        S = S_local + self.regional_source(h, frac)[:, None, None]
+        return Forcing(u, v, S, self.background(h, frac))
 
 
 def simulate(builder: ForcingBuilder, solver: ADRSolver, window: int, substeps: int = 6) -> dict[str, torch.Tensor]:
@@ -280,9 +351,11 @@ def simulate(builder: ForcingBuilder, solver: ADRSolver, window: int, substeps: 
     T = s.wind_u.shape[1]
     c = builder._t(s.c_bg[:, 0])[:, None, None].expand(-1, builder.grid.ny, builder.grid.nx).clone()
     hourly, out = [], {}
+    half = 0.5 / substeps
     for h in range(T):
-        f = builder.forcing(h)
-        _, snaps = solver.run(c, lambda t: f, builder.K, builder.lam, substeps, 3600.0 / substeps)
+        S_loc = builder.source_by_category(h).sum(dim=1)
+        fn = lambda t, h=h, S_loc=S_loc: builder.forcing(h, t / 3600.0 + half, S_loc)  # noqa: E731
+        _, snaps = solver.run(c, fn, builder.K, builder.lam_eff(h), substeps, 3600.0 / substeps)
         if h >= T - window:
             hourly.append(torch.trapezoid(snaps, dim=1) / substeps)
         if h == T - 1:

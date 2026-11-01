@@ -160,3 +160,62 @@ def test_dataset_roundtrip_resimulates_sources(tmp_path, layouts) -> None:
     rebuilt = ForcingBuilder(ds.specs([0, 1, 2, 3]), ds.layouts, GRID).source_by_category(2) * 3600.0
     stored = torch.stack([torch.from_numpy(ds[i]["S_cat"].astype(np.float32)) for i in range(4)])
     assert torch.allclose(rebuilt, stored, rtol=2e-3, atol=1e-3)
+
+
+def test_entrainment_rate_dilutes_only_when_layer_deepens() -> None:
+    from airtrace.data.synthetic import entrainment_rate
+
+    H = np.array([[100.0, 300.0, 300.0, 150.0]])
+    r = entrainment_rate(H)
+    assert np.isclose(r[0, 0], np.log(3.0) / 3600) and r[0, 1] == 0 and r[0, 2] == 0 and r[0, 3] == 0
+
+
+def test_uniform_background_survives_entrainment(layouts) -> None:
+    """With no local sources, c = c_bg(t) stays exact while the mixed layer deepens 10x."""
+    cfg = DATA.model_copy(update={"sim_hours": 4, "window_hours": 2})
+    sp = sample_specs(np.random.default_rng(9), 2, layouts, GRID, cfg, PHYS)
+    sp.sources[..., 7] = 0.0
+    sp.traffic_emission[:] = 0.0
+    sp.mixing_height[:] = [[30.0, 100.0, 300.0, 300.0]] * 2
+    sp.c_bg[:] = [[300.0, 220.0, 150.0, 140.0]] * 2
+    fb = ForcingBuilder(sp, layouts, GRID, dtype=torch.float64, entrainment=True)
+    out = simulate(fb, ADRSolver(GRID), window=2, substeps=6)
+    # c_bg[h] is the start-of-hour value; the last hour continues the 150 -> 140 trend and ends at 130
+    assert torch.allclose(out["c_T"], torch.full_like(out["c_T"], 130.0), rtol=5e-3)  # 10-min forcing steps at ~1/h removal
+    from airtrace.data.synthetic import last_hour_background
+
+    assert torch.allclose(out["c_hourly"][:, -1], torch.full_like(out["c_T"], float(last_hour_background(sp.c_bg[0]))),
+                          rtol=5e-3)
+
+
+def test_entrainment_dilutes_local_excess(layouts) -> None:
+    cfg = DATA.model_copy(update={"sim_hours": 6, "window_hours": 1})
+    sp = sample_specs(np.random.default_rng(10), 1, layouts, GRID, cfg, PHYS)
+    sp.mixing_height[:] = [[100.0, 100.0, 100.0, 100.0, 100.0, 1000.0]]
+    runs = [simulate(ForcingBuilder(sp, layouts, GRID, dtype=torch.float64, entrainment=e), ADRSolver(GRID), 1)
+            for e in (False, True)]
+    ex = [float((r["c_T"] - float(sp.c_bg[0, -1])).clamp(min=0).sum()) for r in runs]
+    assert ex[1] < 0.6 * ex[0]  # a 10x deeper layer in the last hour strips most of the excess
+
+
+def test_log_error_statistics() -> None:
+    from airtrace.data.sensors import log_error
+
+    e = log_error(np.random.default_rng(11), (20000, 6), noise=0.2, bias=0.15, rho=0.7)
+    assert abs(np.mean(np.exp(e)) - 1) < 0.01  # unbiased multiplicative error
+    a = e - e.mean(1, keepdims=True)
+    lag1 = np.corrcoef(e[:, :-1].ravel(), e[:, 1:].ravel())[0, 1]
+    assert abs(np.var(e) - (0.2**2 + 0.15**2)) < 0.005 and lag1 > 0.75 and a.std() < 0.2
+
+
+def test_era5_specs_follow_the_bank(layouts) -> None:
+    from airtrace.data.openmeteo import MetBank
+
+    N = 200
+    times = np.arange(np.datetime64("2023-11-01T00"), np.datetime64("2023-11-01T00") + N)
+    bank = MetBank(times, np.full(N, 3.0), np.zeros(N), np.linspace(20, 1500, N), np.repeat([0, 1], N // 2))
+    assert bank.starts(30).max() < N - 30 and not np.any((bank.starts(30) < 100) & (bank.starts(30) + 30 >= 100))
+    cfg = DATA.model_copy(update={"met_source": "era5", "speed_jitter": (1.0, 1.0), "direction_jitter_deg": 0.0})
+    phys = PHYS.model_copy(update={"mixing_height_floor": 150.0})
+    sp = sample_specs(np.random.default_rng(12), 8, layouts, GRID, cfg, phys, bank)
+    assert np.allclose(sp.wind_u, 3.0) and np.allclose(sp.wind_v, 0.0) and sp.mixing_height.min() >= 150.0

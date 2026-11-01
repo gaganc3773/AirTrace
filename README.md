@@ -347,3 +347,11 @@ real-data list shows a ranking only. It is unvalidated on real data, and blocks 
 Chance of a hit for a random block: about 6%. Localisation improves with more nights, which supports the idea, but 10 trials is
 few (5 of 10 has a wide interval), and the sources are strong. The score separates hidden from control only weakly and doesn't
 improve steadily, so this can suggest where to look but not whether a source is there. This used physics inversion, not the FNO.
+
+## Licence and data credits
+
+The code is under the [MIT licence](LICENSE). That licence doesn't cover the third-party data in this repository, which keeps its own terms:
+
+- **Map data:** © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), available under the [Open Database License](https://opendatacommons.org/licenses/odbl/). This covers `artifacts/cache/osm/`, and data derived from it (`artifacts/delhi_priors.npy`, `app/data/map.json`) is shared under the same licence.
+- **Air quality:** monitor readings accessed through [OpenAQ](https://openaq.org), from CPCB, DPCC, IMD, UPPCB, HSPCB, the US Embassy (StateAir) and AirNow. Each provider's terms apply, and most Indian stations list no licence on OpenAQ. This covers `artifacts/cache/openaq/`, `artifacts/real/` and `app/data/real_meta.json`.
+- **Weather:** [Weather data by Open-Meteo.com](https://open-meteo.com/), under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). This covers `artifacts/cache/real/`. Contains modified Copernicus Climate Change Service information 2026. Neither the European Commission nor ECMWF is responsible for any use that may be made of the Copernicus information or data it contains.

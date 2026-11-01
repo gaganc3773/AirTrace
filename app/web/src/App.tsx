@@ -60,6 +60,9 @@ export function App() {
           </AnimatePresence>
         )}
       </main>
+      <footer className="shrink-0 border-t border-line px-4 py-1 text-[11px] text-dim">
+        Map data © <a className="underline" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a> (ODbL) · Monitor data via <a className="underline" href="https://openaq.org" target="_blank" rel="noreferrer">OpenAQ</a> · <a className="underline" href="https://open-meteo.com/" target="_blank" rel="noreferrer">Weather data by Open-Meteo.com</a> · Contains modified Copernicus Climate Change Service information 2026
+      </footer>
     </div>
   );
 }
